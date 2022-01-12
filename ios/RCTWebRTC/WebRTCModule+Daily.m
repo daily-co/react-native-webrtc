@@ -19,18 +19,97 @@ NSString *const AUDIO_MODE_IDLE = @"idle";
 
 @property (nonatomic, strong) NSString *audioMode;
 
+// Expects to only be accessed on captureSessionQueue
+@property (nonatomic, strong) AVCaptureSession *captureSession;
+@property (nonatomic, strong, readonly) dispatch_queue_t captureSessionQueue;
+
 @end
 
 @implementation WebRTCModule (Daily)
 
 #pragma mark - enableNoOpRecordingEnsuringBackgroundContinuity
 
+- (AVCaptureSession *)captureSession {
+  return objc_getAssociatedObject(self, @selector(captureSession));
+}
+
+- (void)setCaptureSession:(AVCaptureSession *)captureSession {
+  objc_setAssociatedObject(self, @selector(captureSession), captureSession, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+}
+
+- (dispatch_queue_t)captureSessionQueue {
+  dispatch_queue_t queue = objc_getAssociatedObject(self, @selector(captureSessionQueue));
+  if (!queue) {
+    queue = dispatch_queue_create("com.daily.noopcapturesession", DISPATCH_QUEUE_SERIAL);
+    objc_setAssociatedObject(self, @selector(captureSessionQueue), queue, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+  }
+  return queue;
+}
+
+- (void)audioSession:(RTCAudioSession *)audioSession willSetActive:(BOOL)active {
+  // Stop audio recording before RTCAudioSession becomes active, to defend
+  // against the capture session interfering with WebRTC-managed audio session.
+  dispatch_sync(self.captureSessionQueue, ^{
+    [self.captureSession stopRunning];
+    self.captureSession = nil;
+  });
+}
+
 RCT_EXPORT_METHOD(enableNoOpRecordingEnsuringBackgroundContinuity:(BOOL)enable) {
-  // Listen for RTCAudioSession didSetActive so we can apply our audioMode
+  // Listen for RTCAudioSession becoming active, so we can stop recording.
+  // We only need to record until WebRTC audio unit spins up, to keep the app
+  // alive in the background. Recording for longer is wasteful and seems to
+  // interfere with the WebRTC-managed audio session's activation.
   [RTCAudioSession.sharedInstance removeDelegate:self];
   if (enable) {
     [RTCAudioSession.sharedInstance addDelegate:self];
   }
+
+  dispatch_async(self.captureSessionQueue, ^{
+    if (enable) {
+      if (self.captureSession) {
+        return;
+      }
+      AVCaptureSession *captureSession = [self configuredCaptureSession];
+      [captureSession startRunning];
+      self.captureSession = captureSession;
+    }
+    else {
+      [self.captureSession stopRunning];
+      self.captureSession = nil;
+    }
+  });
+}
+
+// Expects to be invoked from captureSessionQueue
+- (AVCaptureSession *)configuredCaptureSession {
+  AVCaptureSession *captureSession = [[AVCaptureSession alloc] init];
+  // Don't automatically configure application audio session, to prevent
+  // configuration "thrashing" once WebRTC audio unit takes the reins.
+  captureSession.automaticallyConfiguresApplicationAudioSession = NO;
+  AVCaptureDevice *audioDevice = [AVCaptureDevice defaultDeviceWithMediaType:AVMediaTypeAudio];
+  if (!audioDevice) {
+    return nil;
+  }
+  NSError *inputError;
+  AVCaptureDeviceInput *audioInput = [AVCaptureDeviceInput deviceInputWithDevice:audioDevice error:&inputError];
+  if (inputError) {
+    return nil;
+  }
+  if ([captureSession canAddInput:audioInput]) {
+    [captureSession addInput:audioInput];
+  }
+  else {
+    return nil;
+  }
+  AVCaptureAudioDataOutput *audioOutput = [[AVCaptureAudioDataOutput alloc] init];
+  if ([captureSession canAddOutput:audioOutput]) {
+    [captureSession addOutput:audioOutput];
+  }
+  else {
+    return nil;
+  }
+  return captureSession;
 }
 
 #pragma mark - setDailyAudioMode
@@ -71,7 +150,6 @@ RCT_EXPORT_METHOD(setDailyAudioMode:(NSString *)audioMode) {
 }
 
 - (void)applyAudioMode:(NSString *)audioMode toSession:(RTCAudioSession *)audioSession {
-  dispatch_async(self.workerQueue, ^{
     // Do nothing if we're attempting to "unset" the in-call audio mode (for now
     // it doesn't seem like there's anything to do).
     if ([audioMode isEqualToString:AUDIO_MODE_IDLE]) {
@@ -93,7 +171,6 @@ RCT_EXPORT_METHOD(setDailyAudioMode:(NSString *)audioMode) {
                      AVAudioSessionModeVideoChat :
                      AVAudioSessionModeVoiceChat);
     [self audioSessionSetMode:mode toSession:audioSession];
-  });
 }
 
 - (void)audioSessionSetCategory:(NSString *)audioCategory
