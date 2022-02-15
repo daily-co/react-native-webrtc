@@ -3,7 +3,10 @@ package com.oney.WebRTCModule;
 import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
+import android.media.AudioDeviceInfo;
+import android.media.AudioManager;
 import android.media.projection.MediaProjectionManager;
+import android.os.Build;
 import android.util.DisplayMetrics;
 import android.util.Log;
 
@@ -19,8 +22,11 @@ import com.facebook.react.bridge.WritableArray;
 import com.facebook.react.bridge.WritableMap;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 import org.webrtc.*;
@@ -153,12 +159,26 @@ class GetUserMediaImpl {
             array.pushMap(params);
         }
 
-        WritableMap audio = Arguments.createMap();
-        audio.putString("deviceId", "audio-1");
-        audio.putString("groupId", "");
-        audio.putString("label", "Audio");
-        audio.putString("kind", "audioinput");
-        array.pushMap(audio);
+        Set<Integer> micTypes = new HashSet(Arrays.asList(AudioDeviceInfo.TYPE_BLUETOOTH_SCO,
+                AudioDeviceInfo.TYPE_WIRED_HEADSET, AudioDeviceInfo.TYPE_WIRED_HEADPHONES,
+                AudioDeviceInfo.TYPE_BUILTIN_MIC, AudioDeviceInfo.TYPE_BUILTIN_EARPIECE));
+        Context context = this.reactContext.getApplicationContext();
+        AudioManager audioManager = (AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
+        AudioDeviceInfo[] inputDevices = audioManager.getDevices(AudioManager.GET_DEVICES_INPUTS);
+        for (AudioDeviceInfo inputDevice : inputDevices) {
+            if(micTypes.contains(inputDevice.getType())){
+                WritableMap audio = Arguments.createMap();
+                audio.putString("deviceId", "audio-"+inputDevice.getId());
+                audio.putString("groupId", "");
+                String label = "Audio " +  inputDevice.getProductName();
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P && inputDevice.getAddress() != null) {
+                    label += " - " + inputDevice.getAddress();
+                }
+                audio.putString("label", label);
+                audio.putString("kind", "audioinput");
+                array.pushMap(audio);
+            }
+        }
 
         return array;
     }
