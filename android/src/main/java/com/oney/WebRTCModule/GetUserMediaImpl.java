@@ -156,7 +156,7 @@ class GetUserMediaImpl {
             params.putString("facing", isFrontFacing ? "user" : "environment");
             params.putString("deviceId", "video-" + i);
             params.putString("label", deviceName);
-            params.putString("kind", "videoInput");
+            params.putString("kind", "videoinput");
             array.pushMap(params);
         }
 
@@ -169,7 +169,7 @@ class GetUserMediaImpl {
         AudioDeviceInfo[] audioInputDevices = audioManager.getDevices(AudioManager.GET_DEVICES_INPUTS);
         for (AudioDeviceInfo inputDevice : audioInputDevices) {
             if(micTypes.contains(inputDevice.getType())){
-                WritableMap audioMap = this.createWritableMapFromDevice(inputDevice, "audioInput");
+                WritableMap audioMap = this.createWritableMapFromDevice(inputDevice, "audioinput");
                 array.pushMap(audioMap);
             }
         }
@@ -180,7 +180,7 @@ class GetUserMediaImpl {
         AudioDeviceInfo[] audioOutputDevices = audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS);
         for (AudioDeviceInfo outputDevice : audioOutputDevices) {
             if(audioOutputTypes.contains(outputDevice.getType())){
-                WritableMap audioMap = this.createWritableMapFromDevice(outputDevice, "audioOutput");
+                WritableMap audioMap = this.createWritableMapFromDevice(outputDevice, "audiooutput");
                 array.pushMap(audioMap);
             }
         }
