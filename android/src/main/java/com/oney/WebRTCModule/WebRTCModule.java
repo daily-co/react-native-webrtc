@@ -1010,6 +1010,12 @@ public class WebRTCModule extends ReactContextBaseJavaModule {
     private  DailyAudioManager dailyAudioManager;
 
     @ReactMethod
+    public void setAudioOutputDevice(int deviceType) {
+        //TODO validar que o dailyAudioManager está realmente iniciado, ver para fazer refactor nessa parte
+        this.dailyAudioManager.setAudioOutputDevice(deviceType);
+    }
+
+    @ReactMethod
     public void setDailyAudioMode(String audioModeString) {
         Log.d(TAG, "setDailyAudioMode: " + audioModeString);
         DailyAudioManager.Mode audioMode;

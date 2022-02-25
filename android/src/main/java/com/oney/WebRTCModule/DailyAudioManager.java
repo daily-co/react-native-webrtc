@@ -15,10 +15,12 @@ import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.modules.core.DeviceEventManagerModule;
 
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.stream.Collectors;
 
 public class DailyAudioManager implements AudioManager.OnAudioFocusChangeListener {
     static final String TAG = DailyAudioManager.class.getCanonicalName();
@@ -26,7 +28,8 @@ public class DailyAudioManager implements AudioManager.OnAudioFocusChangeListene
     public enum Mode {
         IDLE,
         VIDEO_CALL,
-        VOICE_CALL
+        VOICE_CALL,
+        USER_DEFINED
     }
 
     private enum DeviceType {
@@ -47,6 +50,9 @@ public class DailyAudioManager implements AudioManager.OnAudioFocusChangeListene
         public void onAudioDevicesAdded(AudioDeviceInfo[] addedDevices) {
             executor.execute(() -> {
                 Log.d(TAG, "onAudioDevicesAdded");
+                if(Mode.USER_DEFINED == mode){
+                    return; //we dont influentiate if the user is commanding the device selection
+                }
                 configureDevicesForCurrentMode();
             });
         }
@@ -101,6 +107,39 @@ public class DailyAudioManager implements AudioManager.OnAudioFocusChangeListene
             this.mode = mode;
             transitionToCurrentMode(previousMode);
         });
+    }
+
+    /** Changes selection of the currently active audio device. */
+    public void setAudioOutputDevice(int deviceType) {
+        Log.d(TAG, "setAudioDevice(device=" + deviceType + ")");
+        AudioDeviceInfo[] devices = audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS);
+        long foundDevices = Arrays.stream(devices).filter((device) -> device.getType() == deviceType).count();
+        if(foundDevices == 0){
+            //TODO should we throw some exception ?
+            Log.d(TAG, "The selected device type is not available!");
+            return;
+        }
+        switch (deviceType) {
+            case AudioDeviceInfo.TYPE_BUILTIN_SPEAKER:
+                toggleBluetooth(false);
+                audioManager.setSpeakerphoneOn(true);
+                break;
+            //If we have a wired headset plugged, It is not possible we send the audio to the earpiece
+            case AudioDeviceInfo.TYPE_BUILTIN_EARPIECE:
+            case AudioDeviceInfo.TYPE_WIRED_HEADPHONES:
+            case AudioDeviceInfo.TYPE_WIRED_HEADSET:
+                toggleBluetooth(false);
+                audioManager.setSpeakerphoneOn(false);
+                break;
+            case AudioDeviceInfo.TYPE_BLUETOOTH_SCO:
+                audioManager.setSpeakerphoneOn(false);
+                toggleBluetooth(true);
+                break;
+            default:
+                Log.e(TAG, "Invalid audio device selection");
+                break;
+        }
+        //sendAudioFocusChangeEvent(true);
     }
 
     @Override
@@ -259,6 +298,9 @@ public class DailyAudioManager implements AudioManager.OnAudioFocusChangeListene
             return DeviceType.SPEAKER;
         }
         if (mode == Mode.VOICE_CALL && availableDeviceTypes.contains(DeviceType.EARPIECE)) {
+            return DeviceType.EARPIECE;
+        }
+        if (mode == Mode.USER_DEFINED && availableDeviceTypes.contains(DeviceType.EARPIECE)) {
             return DeviceType.EARPIECE;
         }
         return null;
