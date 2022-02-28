@@ -3,10 +3,7 @@ package com.oney.WebRTCModule;
 import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
-import android.media.AudioDeviceInfo;
-import android.media.AudioManager;
 import android.media.projection.MediaProjectionManager;
-import android.os.Build;
 import android.util.DisplayMetrics;
 import android.util.Log;
 
@@ -22,11 +19,8 @@ import com.facebook.react.bridge.WritableArray;
 import com.facebook.react.bridge.WritableMap;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
-import java.util.Set;
 import java.util.UUID;
 
 import org.webrtc.*;
@@ -138,9 +132,8 @@ class GetUserMediaImpl {
 
     ReadableArray enumerateDevices() {
         WritableArray array = Arguments.createArray();
-
-        //video input devices
         String[] devices = cameraEnumerator.getDeviceNames();
+
         for (int i = 0; i < devices.length; ++i) {
             String deviceName = devices[i];
             boolean isFrontFacing;
@@ -152,55 +145,22 @@ class GetUserMediaImpl {
                 continue;
             }
             WritableMap params = Arguments.createMap();
+            params.putString("facing", isFrontFacing ? "front" : "environment");
+            params.putString("deviceId", "" + i);
             params.putString("groupId", "");
-            params.putString("facing", isFrontFacing ? "user" : "environment");
-            params.putString("deviceId", "video-" + i);
             params.putString("label", deviceName);
             params.putString("kind", "videoinput");
             array.pushMap(params);
         }
 
-        //audio
-        Context context = this.reactContext.getApplicationContext();
-        AudioManager audioManager = (AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
-
-        //audio input devices
-        Set<Integer> micTypes = new HashSet(Arrays.asList(AudioDeviceInfo.TYPE_BLUETOOTH_SCO, AudioDeviceInfo.TYPE_WIRED_HEADSET, AudioDeviceInfo.TYPE_BUILTIN_MIC));
-        AudioDeviceInfo[] audioInputDevices = audioManager.getDevices(AudioManager.GET_DEVICES_INPUTS);
-        for (AudioDeviceInfo inputDevice : audioInputDevices) {
-            if(micTypes.contains(inputDevice.getType())){
-                WritableMap audioMap = this.createWritableMapFromDevice(inputDevice, "audioinput");
-                array.pushMap(audioMap);
-            }
-        }
-
-        Set<Integer> audioOutputTypes = new HashSet(Arrays.asList(AudioDeviceInfo.TYPE_BLUETOOTH_SCO, AudioDeviceInfo.TYPE_WIRED_HEADPHONES,
-                AudioDeviceInfo.TYPE_WIRED_HEADSET, AudioDeviceInfo.TYPE_BUILTIN_EARPIECE, AudioDeviceInfo.TYPE_BUILTIN_SPEAKER));
-        //audio output devices
-        AudioDeviceInfo[] audioOutputDevices = audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS);
-        for (AudioDeviceInfo outputDevice : audioOutputDevices) {
-            if(audioOutputTypes.contains(outputDevice.getType())){
-                WritableMap audioMap = this.createWritableMapFromDevice(outputDevice, "audiooutput");
-                array.pushMap(audioMap);
-            }
-        }
+        WritableMap audio = Arguments.createMap();
+        audio.putString("deviceId", "audio-1");
+        audio.putString("groupId", "");
+        audio.putString("label", "Audio");
+        audio.putString("kind", "audioinput");
+        array.pushMap(audio);
 
         return array;
-    }
-
-    private WritableMap createWritableMapFromDevice(AudioDeviceInfo device, String kind){
-        WritableMap audioMap = Arguments.createMap();
-        audioMap.putString("deviceId", "audio-"+device.getId());
-        String label = "Audio " +  device.getProductName();
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P && device.getAddress() != null) {
-            label += " - " + device.getAddress();
-        }
-        audioMap.putString("groupId", "");
-        audioMap.putString("label", label);
-        audioMap.putString("kind", kind);
-        audioMap.putInt("type", device.getType());
-        audioMap.putInt("nativeDeviceId", device.getId());
-        return audioMap;
     }
 
     MediaStreamTrack getTrack(String id) {
