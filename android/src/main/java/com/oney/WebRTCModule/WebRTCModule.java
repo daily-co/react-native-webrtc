@@ -43,6 +43,7 @@ public class WebRTCModule extends ReactContextBaseJavaModule {
     final Map<String, MediaStream> localStreams;
 
     private final GetUserMediaImpl getUserMediaImpl;
+    private final WebRTCDevicesManager webRTCDevicesManager;
 
     public static class Options {
         private VideoEncoderFactory videoEncoderFactory = null;
@@ -133,6 +134,7 @@ public class WebRTCModule extends ReactContextBaseJavaModule {
                 .createPeerConnectionFactory();
 
         getUserMediaImpl = new GetUserMediaImpl(this, reactContext);
+        webRTCDevicesManager = new WebRTCDevicesManager(reactContext);
     }
 
     @NonNull
@@ -499,8 +501,10 @@ public class WebRTCModule extends ReactContextBaseJavaModule {
 
     @ReactMethod
     public void enumerateDevices(Callback callback) {
+        /*ThreadUtils.runOnExecutor(() ->
+            callback.invoke(getUserMediaImpl.enumerateDevices()));*/
         ThreadUtils.runOnExecutor(() ->
-            callback.invoke(getUserMediaImpl.enumerateDevices()));
+                callback.invoke(webRTCDevicesManager.enumerateDevices()));
     }
 
     @ReactMethod
@@ -1010,9 +1014,8 @@ public class WebRTCModule extends ReactContextBaseJavaModule {
     private  DailyAudioManager dailyAudioManager;
 
     @ReactMethod
-    public void setAudioOutputDevice(int deviceType) {
-        //TODO validar que o dailyAudioManager está realmente iniciado, ver para fazer refactor nessa parte
-        this.dailyAudioManager.setAudioOutputDevice(deviceType);
+    public void setAudioOutputDevice(String deviceId) {
+        this.webRTCDevicesManager.setAudioOutputDevice(deviceId);
     }
 
     @ReactMethod

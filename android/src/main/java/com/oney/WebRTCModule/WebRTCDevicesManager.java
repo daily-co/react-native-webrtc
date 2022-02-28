@@ -166,28 +166,28 @@ public class WebRTCDevicesManager {
     }
 
     /** Changes selection of the currently active audio device. */
-    public void setAudioOutputDevice(int deviceType) {
-        Log.d(TAG, "setAudioDevice(device=" + deviceType + ")");
-        AudioDeviceInfo[] devices = audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS);
-        long foundDevices = Arrays.stream(devices).filter((device) -> device.getType() == deviceType).count();
-        if(foundDevices == 0){
+    public void setAudioOutputDevice(String deviceId) {
+        Log.d(TAG, "setAudioDevice(device=" + deviceId + ")");
+        DeviceType deviceType = null;
+        try{
+            deviceType = DeviceType.valueOf(deviceId);
+        } catch (Exception e){
             //TODO should we throw some exception ?
-            Log.d(TAG, "The selected device type is not available!");
+            Log.d(TAG, "The selected device is not available!");
             return;
         }
         switch (deviceType) {
-            case AudioDeviceInfo.TYPE_BUILTIN_SPEAKER:
+            case SPEAKER:
                 toggleBluetooth(false);
                 audioManager.setSpeakerphoneOn(true);
                 break;
             //If we have a wired headset plugged, It is not possible we send the audio to the earpiece
-            case AudioDeviceInfo.TYPE_BUILTIN_EARPIECE:
-            case AudioDeviceInfo.TYPE_WIRED_HEADPHONES:
-            case AudioDeviceInfo.TYPE_WIRED_HEADSET:
+            case HEADSET:
+            case EARPIECE:
                 toggleBluetooth(false);
                 audioManager.setSpeakerphoneOn(false);
                 break;
-            case AudioDeviceInfo.TYPE_BLUETOOTH_SCO:
+            case BLUETOOTH:
                 audioManager.setSpeakerphoneOn(false);
                 toggleBluetooth(true);
                 break;
@@ -195,7 +195,6 @@ public class WebRTCDevicesManager {
                 Log.e(TAG, "Invalid audio device selection");
                 break;
         }
-        //sendAudioFocusChangeEvent(true);
     }
 
     private void toggleBluetooth(boolean on) {
