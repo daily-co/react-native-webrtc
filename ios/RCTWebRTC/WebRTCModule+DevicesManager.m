@@ -56,6 +56,22 @@ RCT_EXPORT_METHOD(enumerateDevices:(RCTResponseSenderBlock)callback)
                              @"kind": @"audioinput",
                              }];
     }
+    
+    // FIXME looks like we will need to create the list of the output devices based on the input devices
+    // https://github.com/sonisuman/AudioPlayer-MultiRoute-Support/tree/master/AudioPlayerMultiRouteSupport/AudioPlayerMultiRouteSupport/AudioPlayerSupport
+    // https://stephen-chen.medium.com/how-to-add-audio-device-action-sheet-to-your-ios-app-e6bc401ccdbc
+    NSArray<AVAudioSessionPortDescription *> *availableInputs = [[AVAudioSession sharedInstance] availableInputs];
+    NSArray<AVAudioSessionCategory> *availableCategories = [[AVAudioSession sharedInstance] availableCategories];
+    
+    NSArray<AVAudioSessionPortDescription *> *outputs = [[[AVAudioSession sharedInstance] currentRoute] outputs];
+    for (AVAudioSessionPortDescription *output in outputs) {
+        NSLog(@"[Daily] Possible outuput %@s %@s", [output portName], [output portType]);
+        if( [output.dataSources count] ){
+            NSLog(@"%@",[NSString stringWithFormat:@"Port has %d data sources",(unsigned)[output.dataSources count] ]);
+            NSLog(@"%@",[NSString stringWithFormat:@"Selected data source:%@",  output.selectedDataSource.dataSourceName]);
+        }
+    }
+    
     callback(@[devices]);
 }
 
