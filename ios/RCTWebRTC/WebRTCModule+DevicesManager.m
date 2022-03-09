@@ -140,7 +140,7 @@ RCT_EXPORT_METHOD(setAudioOutputDevice:(nonnull NSNumber*)deviceId) {
     // Speaker: the speaker is the default output audio for like music, video, ring tone.
     // Bluetooth: whenever a bluetooth device connected, the bluetooth device will become the default audio route.
     // Headphones: whenever any headphones plugged in, it becomes the default audio route even there is also bluetooth device.
-    //  And it overwrites the handset(iPhone) option, which means you cannot change to the handset(iPhone).
+    //  And it overwrites the handset(iPhone) option, which means you cannot change to the earpiece, bluetooth.
     switch ([deviceId intValue]) {
         case EARPIECE_HEADSET:
             //we dont need to add anything more
@@ -161,8 +161,15 @@ RCT_EXPORT_METHOD(setAudioOutputDevice:(nonnull NSNumber*)deviceId) {
     }
     
     AVAudioSession *audioSession = AVAudioSession.sharedInstance;
+    // We need to set the mode before set the category, because when setting the node It can automatically change the categories.
+    // This way we can enforce the categories that we want later.
     [self audioSessionSetMode:mode toSession:audioSession];
     [self audioSessionSetCategory:AVAudioSessionCategoryPlayAndRecord toSession:audioSession options:categoryOptions];
+    
+    // Force to speaker. We only need to do that the cases a wired headset is connected, but we still want to force to speaker
+    if([deviceId intValue] == SPEAKER){
+        [audioSession overrideOutputAudioPort: AVAudioSessionPortOverrideSpeaker error: nil];
+    }
 }
 
 - (void)audioSessionSetCategory:(NSString *)audioCategory
