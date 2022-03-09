@@ -6,6 +6,7 @@
 //
 
 #import "WebRTCModule.h"
+#import <WebRTC/RTCAudioSession.h>
 
 @interface WebRTCModule (DevicesManager)
 
@@ -134,7 +135,8 @@ RCT_EXPORT_METHOD(setAudioOutputDevice:(nonnull NSNumber*)deviceId) {
     // other apps, which allows this app to stay alive in the backgrounnd during
     // a call (assuming it has the voip background mode set).
     AVAudioSessionCategoryOptions categoryOptions = (AVAudioSessionCategoryOptionDuckOthers);
-
+    NSString *mode = AVAudioSessionModeVoiceChat;
+    
     switch ([deviceId intValue]) {
         case EARPIECE_HEADSET:
             //we dont need to add anything more
@@ -143,6 +145,7 @@ RCT_EXPORT_METHOD(setAudioOutputDevice:(nonnull NSNumber*)deviceId) {
         case SPEAKER:
             NSLog(@"[Daily] configuring output to SPEAKER");
             categoryOptions |= AVAudioSessionCategoryOptionDefaultToSpeaker;
+            mode = AVAudioSessionModeVideoChat;
             break;
         case BLUETOOTH:
             NSLog(@"[Daily] configuring output to BLUETOOTH");
@@ -153,11 +156,13 @@ RCT_EXPORT_METHOD(setAudioOutputDevice:(nonnull NSNumber*)deviceId) {
             break;
     }
     
-    [self audioSessionSetCategory:AVAudioSessionCategoryPlayAndRecord toSession:[AVAudioSession sharedInstance] options:categoryOptions];
+    RTCAudioSession *audioSession = RTCAudioSession.sharedInstance;
+    [self audioSessionSetCategory:AVAudioSessionCategoryPlayAndRecord toSession:audioSession options:categoryOptions];
+    [self audioSessionSetMode:mode toSession:audioSession];
 }
 
 - (void)audioSessionSetCategory:(NSString *)audioCategory
-                      toSession:(AVAudioSession *)audioSession
+                      toSession:(RTCAudioSession *)audioSession
                         options:(AVAudioSessionCategoryOptions)options
 {
   @try {
@@ -167,6 +172,17 @@ RCT_EXPORT_METHOD(setAudioOutputDevice:(nonnull NSNumber*)deviceId) {
     NSLog(@"[Daily] audioSession.setCategory: %@, withOptions: %lu success", audioCategory, (unsigned long)options);
   } @catch (NSException *e) {
     NSLog(@"[Daily] audioSession.setCategory: %@, withOptions: %lu fail: %@", audioCategory, (unsigned long)options, e.reason);
+  }
+}
+
+- (void)audioSessionSetMode:(NSString *)audioMode
+                  toSession:(RTCAudioSession *)audioSession
+{
+  @try {
+    [audioSession setMode:audioMode error:nil];
+    NSLog(@"[Daily] audioSession.setMode(%@) success", audioMode);
+  } @catch (NSException *e) {
+    NSLog(@"[Daily] audioSession.setMode(%@) fail: %@", audioMode, e.reason);
   }
 }
 
