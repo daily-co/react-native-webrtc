@@ -6,7 +6,6 @@
 //
 
 #import "WebRTCModule.h"
-#import <WebRTC/RTCAudioSession.h>
 
 @interface WebRTCModule (DevicesManager)
 
@@ -137,6 +136,11 @@ RCT_EXPORT_METHOD(setAudioOutputDevice:(nonnull NSNumber*)deviceId) {
     AVAudioSessionCategoryOptions categoryOptions = (AVAudioSessionCategoryOptionDuckOthers);
     NSString *mode = AVAudioSessionModeVoiceChat;
     
+    // Earpiece: is default route for a call.
+    // Speaker: the speaker is the default output audio for like music, video, ring tone.
+    // Bluetooth: whenever a bluetooth device connected, the bluetooth device will become the default audio route.
+    // Headphones: whenever any headphones plugged in, it becomes the default audio route even there is also bluetooth device.
+    //  And it overwrites the handset(iPhone) option, which means you cannot change to the handset(iPhone).
     switch ([deviceId intValue]) {
         case EARPIECE_HEADSET:
             //we dont need to add anything more
@@ -156,13 +160,13 @@ RCT_EXPORT_METHOD(setAudioOutputDevice:(nonnull NSNumber*)deviceId) {
             break;
     }
     
-    RTCAudioSession *audioSession = RTCAudioSession.sharedInstance;
-    [self audioSessionSetCategory:AVAudioSessionCategoryPlayAndRecord toSession:audioSession options:categoryOptions];
+    AVAudioSession *audioSession = AVAudioSession.sharedInstance;
     [self audioSessionSetMode:mode toSession:audioSession];
+    [self audioSessionSetCategory:AVAudioSessionCategoryPlayAndRecord toSession:audioSession options:categoryOptions];
 }
 
 - (void)audioSessionSetCategory:(NSString *)audioCategory
-                      toSession:(RTCAudioSession *)audioSession
+                      toSession:(AVAudioSession *)audioSession
                         options:(AVAudioSessionCategoryOptions)options
 {
   @try {
@@ -176,7 +180,7 @@ RCT_EXPORT_METHOD(setAudioOutputDevice:(nonnull NSNumber*)deviceId) {
 }
 
 - (void)audioSessionSetMode:(NSString *)audioMode
-                  toSession:(RTCAudioSession *)audioSession
+                  toSession:(AVAudioSession *)audioSession
 {
   @try {
     [audioSession setMode:audioMode error:nil];
