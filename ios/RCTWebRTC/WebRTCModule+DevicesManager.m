@@ -17,6 +17,15 @@ RCT_EXPORT_METHOD(enumerateDevices:(RCTResponseSenderBlock)callback)
 {
     NSLog(@"[Daily] enumerateDevice from DevicesManager");
     NSMutableArray *devices = [NSMutableArray array];
+    
+    [self fillVideoInputDevices:devices];
+    [self fillAudioInputDevices:devices];
+    [self fillAudioOutputDevices:devices];
+    
+    callback(@[devices]);
+}
+
+- (void)fillVideoInputDevices:(NSMutableArray *)devices {
     AVCaptureDeviceDiscoverySession *videoevicesSession
         = [AVCaptureDeviceDiscoverySession discoverySessionWithDeviceTypes:@[ AVCaptureDeviceTypeBuiltInWideAngleCamera ]
                                                                  mediaType:AVMediaTypeVideo
@@ -40,6 +49,9 @@ RCT_EXPORT_METHOD(enumerateDevices:(RCTResponseSenderBlock)callback)
                              @"kind": @"videoinput",
                              }];
     }
+}
+
+- (void)fillAudioInputDevices:(NSMutableArray *)devices {
     AVCaptureDeviceDiscoverySession *audioDevicesSession
         = [AVCaptureDeviceDiscoverySession discoverySessionWithDeviceTypes:@[ AVCaptureDeviceTypeBuiltInMicrophone ]
                                                                  mediaType:AVMediaTypeAudio
@@ -56,12 +68,15 @@ RCT_EXPORT_METHOD(enumerateDevices:(RCTResponseSenderBlock)callback)
                              @"kind": @"audioinput",
                              }];
     }
-    
+}
+
+//TODO implement
+- (void)fillAudioOutputDevices:(NSMutableArray *)devices {
     // FIXME looks like we will need to create the list of the output devices based on the input devices
     // https://github.com/sonisuman/AudioPlayer-MultiRoute-Support/tree/master/AudioPlayerMultiRouteSupport/AudioPlayerMultiRouteSupport/AudioPlayerSupport
     // https://stephen-chen.medium.com/how-to-add-audio-device-action-sheet-to-your-ios-app-e6bc401ccdbc
+    // https://github.com/xialin/AudioSessionManager/blob/master/AudioSessionManager.m
     NSArray<AVAudioSessionPortDescription *> *availableInputs = [[AVAudioSession sharedInstance] availableInputs];
-    NSArray<AVAudioSessionCategory> *availableCategories = [[AVAudioSession sharedInstance] availableCategories];
     
     NSArray<AVAudioSessionPortDescription *> *outputs = [[[AVAudioSession sharedInstance] currentRoute] outputs];
     for (AVAudioSessionPortDescription *output in outputs) {
@@ -71,8 +86,18 @@ RCT_EXPORT_METHOD(enumerateDevices:(RCTResponseSenderBlock)callback)
             NSLog(@"%@",[NSString stringWithFormat:@"Selected data source:%@",  output.selectedDataSource.dataSourceName]);
         }
     }
+}
+
+- (BOOL)isBluetoothDevice:(NSString*)portType {
+    BOOL isBluetooth;
+    isBluetooth = ([portType isEqualToString:AVAudioSessionPortBluetoothA2DP] ||
+                   [portType isEqualToString:AVAudioSessionPortBluetoothHFP]);
     
-    callback(@[devices]);
+    if ([[[UIDevice currentDevice] systemVersion] integerValue] > 6) {
+        isBluetooth = (isBluetooth || [portType isEqualToString:AVAudioSessionPortBluetoothLE]);
+    }
+    
+    return isBluetooth;
 }
 
 
