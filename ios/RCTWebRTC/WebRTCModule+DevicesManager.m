@@ -14,12 +14,12 @@
 @implementation WebRTCModule (DevicesManager)
 
 enum DeviceType {
-    BLUETOOTH,
-    SPEAKER,
-    EARPIECE_HEADSET,
-    BUILT_IN_MICROPHONE,
-    CAMERA_USER,
-    CAMERA_ENVIRONMENT,
+    BLUETOOTH=1,
+    SPEAKER=2,
+    EARPIECE_HEADSET=3,
+    BUILT_IN_MICROPHONE=4,
+    CAMERA_USER=5,
+    CAMERA_ENVIRONMENT=6,
 };
 
 RCT_EXPORT_METHOD(enumerateDevices:(RCTResponseSenderBlock)callback)
