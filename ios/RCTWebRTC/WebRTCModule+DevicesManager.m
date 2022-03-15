@@ -13,6 +13,10 @@
 
 @implementation WebRTCModule (DevicesManager)
 
+static NSString const *DEVICE_KIND_VIDEO_INPUT = @"videoinput";
+static NSString const *DEVICE_KIND_AUDIO_INPUT = @"audioinput";
+static NSString const *DEVICE_KIND_AUDIO_OUTPUT = @"audiooutput";
+
 enum DeviceType {
     BLUETOOTH=1,
     SPEAKER=2,
@@ -57,7 +61,7 @@ RCT_EXPORT_METHOD(enumerateDevices:(RCTResponseSenderBlock)callback)
                              @"deviceId": device.uniqueID,
                              @"groupId": @"",
                              @"label": label,
-                             @"kind": @"videoinput",
+                             @"kind": DEVICE_KIND_VIDEO_INPUT,
                              }];
     }
 }
@@ -72,11 +76,12 @@ RCT_EXPORT_METHOD(enumerateDevices:(RCTResponseSenderBlock)callback)
         if (device.localizedName != nil) {
             label = device.localizedName;
         }
+        //TODO need to validate the type of device, if builtin, bluetooth or headset
         [devices addObject:@{
                              @"deviceId": device.uniqueID,
                              @"groupId": @"",
                              @"label": label,
-                             @"kind": @"audioinput",
+                             @"kind": DEVICE_KIND_AUDIO_INPUT,
                              }];
     }
 }
@@ -85,15 +90,15 @@ RCT_EXPORT_METHOD(enumerateDevices:(RCTResponseSenderBlock)callback)
     [devices addObject:@{
                          @"deviceId": [NSNumber numberWithInt:EARPIECE_HEADSET],
                          @"groupId": @"",
-                         @"label": @"Earpiece\Headset",
-                         @"kind": @"audiooutput",
+                         @"label": @"Earpiece/Headset",
+                         @"kind": DEVICE_KIND_AUDIO_OUTPUT,
                          }];
     
     [devices addObject:@{
                          @"deviceId": [NSNumber numberWithInt:SPEAKER],
                          @"groupId": @"",
                          @"label": @"Speaker",
-                         @"kind": @"audiooutput",
+                         @"kind": DEVICE_KIND_AUDIO_OUTPUT,
                          }];
     
     if(self.hasBluetoothDevice){
@@ -101,7 +106,7 @@ RCT_EXPORT_METHOD(enumerateDevices:(RCTResponseSenderBlock)callback)
                              @"deviceId": [NSNumber numberWithInt:BLUETOOTH],
                              @"groupId": @"",
                              @"label": @"Bluetooth",
-                             @"kind": @"audiooutput",
+                             @"kind": DEVICE_KIND_AUDIO_OUTPUT,
                              }];
     }
 }
