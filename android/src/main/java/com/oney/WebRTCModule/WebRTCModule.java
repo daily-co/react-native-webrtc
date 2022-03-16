@@ -1014,8 +1014,8 @@ public class WebRTCModule extends ReactContextBaseJavaModule {
     private  DailyAudioManager dailyAudioManager;
 
     @ReactMethod
-    public void setAudioRoute(String deviceId) {
-        this.webRTCDevicesManager.setAudioRoute(deviceId);
+    public void setAudioRoute(int audioRoute) {
+        this.webRTCDevicesManager.setAudioRoute(audioRoute);
     }
 
     @ReactMethod

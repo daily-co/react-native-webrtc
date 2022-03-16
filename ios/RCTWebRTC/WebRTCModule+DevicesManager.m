@@ -26,6 +26,26 @@ enum DeviceType {
     CAMERA_ENVIRONMENT=6,
 };
 
+enum AudioRoute {
+    ROUTE_BUILT_IN=1,
+    ROUTE_SPEAKER=2,
+    ROUTE_BLUETOOTH=3,
+};
+
+- (NSNumber*)getAudioRouteFromDeviceType:(enum DeviceType)deviceType {
+    switch (deviceType) {
+        case EARPIECE_HEADSET:
+        case BUILT_IN_MICROPHONE:
+            return [NSNumber numberWithInt:ROUTE_BUILT_IN];
+        case SPEAKER:
+            return [NSNumber numberWithInt:ROUTE_SPEAKER];
+        case BLUETOOTH:
+            return [NSNumber numberWithInt:ROUTE_BLUETOOTH];
+        default:
+            return 0;
+    }
+}
+
 RCT_EXPORT_METHOD(enumerateDevices:(RCTResponseSenderBlock)callback)
 {
     NSLog(@"[Daily] enumerateDevice from DevicesManager");
@@ -38,7 +58,7 @@ RCT_EXPORT_METHOD(enumerateDevices:(RCTResponseSenderBlock)callback)
     callback(@[devices]);
 }
 
-// Whenever any headphones plugged in, it becomes the default audio route even there is also bluetooth device.
+// Whenever any headphones plugged in, it becomes the default audio route even if there is also bluetooth device.
 // And it overwrites the handset(iPhone) option, which means you cannot change to the handset(iPhone).
 - (void)fillVideoInputDevices:(NSMutableArray *)devices {
     AVCaptureDeviceDiscoverySession *videoevicesSession
@@ -83,6 +103,16 @@ RCT_EXPORT_METHOD(enumerateDevices:(RCTResponseSenderBlock)callback)
                              @"groupId": @"",
                              @"label": label,
                              @"kind": DEVICE_KIND_AUDIO_INPUT,
+                             @"audioRoute": [self getAudioRouteFromDeviceType:BUILT_IN_MICROPHONE],
+                             }];
+    }
+    if(self.hasBluetoothDevice){
+        [devices addObject:@{
+                             @"deviceId": [NSNumber numberWithInt:BLUETOOTH],
+                             @"groupId": @"",
+                             @"label": @"Bluetooth",
+                             @"kind": DEVICE_KIND_AUDIO_INPUT,
+                             @"audioRoute": [self getAudioRouteFromDeviceType:BLUETOOTH],
                              }];
     }
 }
@@ -93,6 +123,7 @@ RCT_EXPORT_METHOD(enumerateDevices:(RCTResponseSenderBlock)callback)
                          @"groupId": @"",
                          @"label": @"Earpiece/Headset",
                          @"kind": DEVICE_KIND_AUDIO_OUTPUT,
+                         @"audioRoute": [self getAudioRouteFromDeviceType:EARPIECE_HEADSET],
                          }];
     
     [devices addObject:@{
@@ -100,15 +131,17 @@ RCT_EXPORT_METHOD(enumerateDevices:(RCTResponseSenderBlock)callback)
                          @"groupId": @"",
                          @"label": @"Speaker",
                          @"kind": DEVICE_KIND_AUDIO_OUTPUT,
+                         @"audioRoute": [self getAudioRouteFromDeviceType:SPEAKER],
                          }];
     
     if(self.hasBluetoothDevice){
         [devices addObject:@{
-                             @"deviceId": [NSNumber numberWithInt:BLUETOOTH],
-                             @"groupId": @"",
-                             @"label": @"Bluetooth",
-                             @"kind": DEVICE_KIND_AUDIO_OUTPUT,
-                             }];
+                         @"deviceId": [NSNumber numberWithInt:BLUETOOTH],
+                         @"groupId": @"",
+                         @"label": @"Bluetooth",
+                         @"kind": DEVICE_KIND_AUDIO_OUTPUT,
+                         @"audioRoute": [self getAudioRouteFromDeviceType:BLUETOOTH],
+                         }];
     }
 }
 
@@ -145,8 +178,8 @@ RCT_EXPORT_METHOD(enumerateDevices:(RCTResponseSenderBlock)callback)
 // Some reference links explaining how the audio from IOs works and sample code
 // https://stephen-chen.medium.com/how-to-add-audio-device-action-sheet-to-your-ios-app-e6bc401ccdbc
 // https://github.com/xialin/AudioSessionManager/blob/master/AudioSessionManager.m
-RCT_EXPORT_METHOD(setAudioRoute:(nonnull NSNumber*)deviceId) {
-    NSLog(@"[Daily] setAudioRoute: %@", deviceId);
+RCT_EXPORT_METHOD(setAudioRoute:(nonnull NSNumber*)audioRoute) {
+    NSLog(@"[Daily] setAudioRoute: %@", audioRoute);
     
     // Ducking other apps' audio implicitly enables allowing mixing audio with
     // other apps, which allows this app to stay alive in the backgrounnd during
@@ -159,17 +192,17 @@ RCT_EXPORT_METHOD(setAudioRoute:(nonnull NSNumber*)deviceId) {
     // Bluetooth: whenever a bluetooth device connected, the bluetooth device will become the default audio route.
     // Headphones: whenever any headphones plugged in, it becomes the default audio route even there is also bluetooth device.
     //  And it overwrites the handset(iPhone) option, which means you cannot change to the earpiece, bluetooth.
-    switch ([deviceId intValue]) {
-        case EARPIECE_HEADSET:
+    switch ([audioRoute intValue]) {
+        case ROUTE_BUILT_IN:
             //we dont need to add anything more
             NSLog(@"[Daily] configuring output to EARPIECE_HEADSET");
             break;
-        case SPEAKER:
+        case ROUTE_SPEAKER:
             NSLog(@"[Daily] configuring output to SPEAKER");
             categoryOptions |= AVAudioSessionCategoryOptionDefaultToSpeaker;
             mode = AVAudioSessionModeVideoChat;
             break;
-        case BLUETOOTH:
+        case ROUTE_BLUETOOTH:
             NSLog(@"[Daily] configuring output to BLUETOOTH");
             categoryOptions |= AVAudioSessionCategoryOptionAllowBluetooth;
             break;
@@ -185,7 +218,7 @@ RCT_EXPORT_METHOD(setAudioRoute:(nonnull NSNumber*)deviceId) {
     [self audioSessionSetCategory:AVAudioSessionCategoryPlayAndRecord toSession:audioSession options:categoryOptions];
     
     // Force to speaker. We only need to do that the cases a wired headset is connected, but we still want to force to speaker
-    if([deviceId intValue] == SPEAKER){
+    if([audioRoute intValue] == ROUTE_SPEAKER){
         [audioSession overrideOutputAudioPort: AVAudioSessionPortOverrideSpeaker error: nil];
     }
 }

@@ -40,14 +40,42 @@ public class WebRTCDevicesManager {
         }
     }
 
+    public enum AudioRoute {
+        // Those constants are defined on the webrtc specification
+        // https://w3c.github.io/mediacapture-main/#dom-mediadevicekind
+        ROUTE_BUILT_IN(1),
+        ROUTE_SPEAKER(2),
+        ROUTE_BLUETOOTH(3);
+
+        private int value;
+
+        AudioRoute(int value){
+            this.value = value;
+        }
+
+        public int getValue() {
+            return this.value;
+        }
+
+        static AudioRoute get(int value){
+            return Arrays.stream(AudioRoute.values()).filter(audioRoute -> audioRoute.value == value).findFirst().get();
+        }
+    }
+
     private enum DeviceType {
-        BLUETOOTH,
-        HEADSET,
-        SPEAKER,
-        EARPIECE,
-        BUILT_IN_MICROPHONE,
-        CAMERA_USER,
-        CAMERA_ENVIRONMENT,
+        BLUETOOTH(AudioRoute.ROUTE_BLUETOOTH),
+        HEADSET(AudioRoute.ROUTE_BUILT_IN),
+        SPEAKER(AudioRoute.ROUTE_SPEAKER),
+        EARPIECE(AudioRoute.ROUTE_BUILT_IN),
+        BUILT_IN_MICROPHONE(AudioRoute.ROUTE_BUILT_IN),
+        CAMERA_USER(null),
+        CAMERA_ENVIRONMENT(null);
+
+        private AudioRoute audioRoute;
+
+        DeviceType(AudioRoute audioRoute){
+            this.audioRoute = audioRoute;
+        }
     }
 
     private final CameraEnumerator cameraEnumerator;
@@ -156,38 +184,33 @@ public class WebRTCDevicesManager {
         }
     }
 
-    private WritableMap createWritableMap(DeviceType deviceId, String label, String kind){
+    private WritableMap createWritableMap(DeviceType deviceType, String label, String kind){
         WritableMap audioMap = Arguments.createMap();
-        audioMap.putString("deviceId", deviceId.toString());
+        audioMap.putString("deviceId", deviceType.toString());
         audioMap.putString("groupId", "");
         audioMap.putString("label", label);
         audioMap.putString("kind", kind);
+        if(deviceType.audioRoute != null){
+            audioMap.putInt("audioRoute", deviceType.audioRoute.getValue());
+        }
         return audioMap;
     }
 
     /** Changes selection of the currently active audio device. */
-    public void setAudioRoute(String deviceId) {
-        Log.d(TAG, "setAudioDevice(device=" + deviceId + ")");
-        DeviceType deviceType = null;
-        try{
-            deviceType = DeviceType.valueOf(deviceId);
-        } catch (Exception e){
-            //TODO should we throw some exception ?
-            Log.d(TAG, "The selected device is not available!");
-            return;
-        }
-        switch (deviceType) {
-            case SPEAKER:
+    public void setAudioRoute(int audioRouteValue) {
+        Log.d(TAG, "setAudioRoute(audioRoute=" + audioRouteValue + ")");
+        AudioRoute audioRoute = AudioRoute.get(audioRouteValue);
+        switch (audioRoute) {
+            case ROUTE_SPEAKER:
                 toggleBluetooth(false);
                 audioManager.setSpeakerphoneOn(true);
                 break;
             //If we have a wired headset plugged, It is not possible we send the audio to the earpiece
-            case HEADSET:
-            case EARPIECE:
+            case ROUTE_BUILT_IN:
                 toggleBluetooth(false);
                 audioManager.setSpeakerphoneOn(false);
                 break;
-            case BLUETOOTH:
+            case ROUTE_BLUETOOTH:
                 audioManager.setSpeakerphoneOn(false);
                 toggleBluetooth(true);
                 break;
