@@ -166,7 +166,7 @@ public class WebRTCDevicesManager {
     }
 
     /** Changes selection of the currently active audio device. */
-    public void setAudioOutputDevice(String deviceId) {
+    public void setAudioRoute(String deviceId) {
         Log.d(TAG, "setAudioDevice(device=" + deviceId + ")");
         DeviceType deviceType = null;
         try{

@@ -76,6 +76,7 @@ RCT_EXPORT_METHOD(enumerateDevices:(RCTResponseSenderBlock)callback)
         if (device.localizedName != nil) {
             label = device.localizedName;
         }
+        //TODO create a new attribute audioRoute
         //TODO need to validate the type of device, if builtin, bluetooth or headset
         [devices addObject:@{
                              @"deviceId": device.uniqueID,
@@ -144,8 +145,8 @@ RCT_EXPORT_METHOD(enumerateDevices:(RCTResponseSenderBlock)callback)
 // Some reference links explaining how the audio from IOs works and sample code
 // https://stephen-chen.medium.com/how-to-add-audio-device-action-sheet-to-your-ios-app-e6bc401ccdbc
 // https://github.com/xialin/AudioSessionManager/blob/master/AudioSessionManager.m
-RCT_EXPORT_METHOD(setAudioOutputDevice:(nonnull NSNumber*)deviceId) {
-    NSLog(@"[Daily] setAudioOutputDevice: %@", deviceId);
+RCT_EXPORT_METHOD(setAudioRoute:(nonnull NSNumber*)deviceId) {
+    NSLog(@"[Daily] setAudioRoute: %@", deviceId);
     
     // Ducking other apps' audio implicitly enables allowing mixing audio with
     // other apps, which allows this app to stay alive in the backgrounnd during
