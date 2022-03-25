@@ -96,8 +96,6 @@ RCT_EXPORT_METHOD(enumerateDevices:(RCTResponseSenderBlock)callback)
         if (device.localizedName != nil) {
             label = device.localizedName;
         }
-        //TODO create a new attribute audioRoute
-        //TODO need to validate the type of device, if builtin, bluetooth or headset
         [devices addObject:@{
                              @"deviceId": device.uniqueID,
                              @"groupId": @"",
@@ -108,7 +106,7 @@ RCT_EXPORT_METHOD(enumerateDevices:(RCTResponseSenderBlock)callback)
     }
     if(self.hasBluetoothDevice){
         [devices addObject:@{
-                             @"deviceId": [NSNumber numberWithInt:BLUETOOTH],
+                             @"deviceId": [NSString stringWithFormat:@"%i", BLUETOOTH],
                              @"groupId": @"",
                              @"label": @"Bluetooth",
                              @"kind": DEVICE_KIND_AUDIO_INPUT,
@@ -118,8 +116,9 @@ RCT_EXPORT_METHOD(enumerateDevices:(RCTResponseSenderBlock)callback)
 }
 
 - (void)fillAudioOutputDevices:(NSMutableArray *)devices {
+    
     [devices addObject:@{
-                         @"deviceId": [NSNumber numberWithInt:EARPIECE_HEADSET],
+                         @"deviceId": [NSString stringWithFormat:@"%i",EARPIECE_HEADSET],
                          @"groupId": @"",
                          @"label": @"Earpiece/Headset",
                          @"kind": DEVICE_KIND_AUDIO_OUTPUT,
@@ -127,7 +126,7 @@ RCT_EXPORT_METHOD(enumerateDevices:(RCTResponseSenderBlock)callback)
                          }];
     
     [devices addObject:@{
-                         @"deviceId": [NSNumber numberWithInt:SPEAKER],
+                         @"deviceId": [NSString stringWithFormat:@"%i",SPEAKER],
                          @"groupId": @"",
                          @"label": @"Speaker",
                          @"kind": DEVICE_KIND_AUDIO_OUTPUT,
@@ -136,7 +135,7 @@ RCT_EXPORT_METHOD(enumerateDevices:(RCTResponseSenderBlock)callback)
     
     if(self.hasBluetoothDevice){
         [devices addObject:@{
-                         @"deviceId": [NSNumber numberWithInt:BLUETOOTH],
+                         @"deviceId": [NSString stringWithFormat:@"%i",BLUETOOTH],
                          @"groupId": @"",
                          @"label": @"Bluetooth",
                          @"kind": DEVICE_KIND_AUDIO_OUTPUT,
