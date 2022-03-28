@@ -1019,6 +1019,14 @@ public class WebRTCModule extends ReactContextBaseJavaModule {
     }
 
     @ReactMethod
+    public void getAudioRoute(Promise promise) {
+        ThreadUtils.runOnExecutor(() -> {
+            int audioRoute = this.webRTCDevicesManager.getAudioRoute();
+            promise.resolve(audioRoute);
+        });
+    }
+
+    @ReactMethod
     public void setDailyAudioMode(String audioModeString) {
         Log.d(TAG, "setDailyAudioMode: " + audioModeString);
         DailyAudioManager.Mode audioMode;

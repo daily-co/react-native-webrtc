@@ -68,6 +68,7 @@ public class WebRTCDevicesManager {
         SPEAKER(AudioRoute.ROUTE_SPEAKER),
         EARPIECE(AudioRoute.ROUTE_BUILT_IN),
         BUILT_IN_MICROPHONE(AudioRoute.ROUTE_BUILT_IN),
+        BUILT_IN_MICROPHONE_SPEAKER(AudioRoute.ROUTE_SPEAKER),
         CAMERA_USER(null),
         CAMERA_ENVIRONMENT(null);
 
@@ -145,8 +146,11 @@ public class WebRTCDevicesManager {
             WritableMap params = this.createWritableMap(DeviceType.HEADSET, "Wired headset", DeviceKind.AUDIO_INPUT.getKind());
             enumerateDevicesArray.pushMap(params);
         }else {
-            WritableMap params = this.createWritableMap(DeviceType.BUILT_IN_MICROPHONE, "Built in microphone", DeviceKind.AUDIO_INPUT.getKind());
-            enumerateDevicesArray.pushMap(params);
+            WritableMap paramsBuiltIn = this.createWritableMap(DeviceType.BUILT_IN_MICROPHONE, "Built in microphone", DeviceKind.AUDIO_INPUT.getKind());
+            enumerateDevicesArray.pushMap(paramsBuiltIn);
+
+            WritableMap paramsBuiltInSpeaker = this.createWritableMap(DeviceType.BUILT_IN_MICROPHONE_SPEAKER, "Built in speaker microphone", DeviceKind.AUDIO_INPUT.getKind());
+            enumerateDevicesArray.pushMap(paramsBuiltInSpeaker);
         }
 
         boolean isBluetoothHeadsetPlugged = Arrays.stream(audioInputDevices).anyMatch(device -> device.getType() == AudioDeviceInfo.TYPE_BLUETOOTH_SCO);
@@ -217,6 +221,16 @@ public class WebRTCDevicesManager {
             default:
                 Log.e(TAG, "Invalid audio device selection");
                 break;
+        }
+    }
+
+    public int getAudioRoute() {
+        if(this.audioManager.isBluetoothScoOn() || this.audioManager.isBluetoothA2dpOn()){
+            return AudioRoute.ROUTE_BLUETOOTH.getValue();
+        }else if(this.audioManager.isSpeakerphoneOn()){
+            return AudioRoute.ROUTE_SPEAKER.getValue();
+        }else {
+            return AudioRoute.ROUTE_BUILT_IN.getValue();
         }
     }
 
