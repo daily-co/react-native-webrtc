@@ -182,11 +182,33 @@ RCT_EXPORT_METHOD(enumerateDevices:(RCTResponseSenderBlock)callback)
     return isBluetooth;
 }
 
+- (BOOL)isBuiltInSpeaker:(NSString*)portType {
+    return [portType isEqualToString:AVAudioSessionPortBuiltInSpeaker];
+}
+
+- (BOOL)isBuiltInEarpieceHeadset:(NSString*)portType {
+    return ([portType isEqualToString:AVAudioSessionPortBuiltInReceiver] ||
+            [portType isEqualToString:AVAudioSessionPortHeadphones]);
+}
+
 
 RCT_EXPORT_METHOD(getAudioRoute: (RCTPromiseResolveBlock)resolve
                   rejecter:(RCTPromiseRejectBlock)reject) {
     NSLog(@"[Daily] getAudioRoute");
-    resolve([NSNumber numberWithInt:ROUTE_SPEAKER]);
+    AVAudioSession *audioSession = AVAudioSession.sharedInstance;
+    NSArray<AVAudioSessionPortDescription *> *currentRoutes = [[audioSession currentRoute] outputs];
+    if([currentRoutes count] > 0){
+        NSString* currentPortType = [currentRoutes[0] portType];
+        NSLog(@"[Daily] currentPortType: %@", currentPortType);
+        if([self isBluetoothDevice:currentPortType]){
+            return resolve([NSNumber numberWithInt:ROUTE_BLUETOOTH]);
+        } else if([self isBuiltInSpeaker:currentPortType]){
+            return resolve([NSNumber numberWithInt:ROUTE_SPEAKER]);
+        } else if([self isBuiltInEarpieceHeadset:currentPortType]){
+            return resolve([NSNumber numberWithInt:ROUTE_BUILT_IN]);
+        }
+    }
+    return resolve([NSNumber numberWithInt:ROUTE_SPEAKER]);
 }
 
 // Some reference links explaining how the audio from IOs works and sample code
