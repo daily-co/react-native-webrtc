@@ -22,8 +22,9 @@ enum DeviceType {
     SPEAKER=2,
     EARPIECE_HEADSET=3,
     BUILT_IN_MICROPHONE=4,
-    CAMERA_USER=5,
-    CAMERA_ENVIRONMENT=6,
+    BUILT_IN_MICROPHONE_SPEAKER=5,
+    CAMERA_USER=6,
+    CAMERA_ENVIRONMENT=7,
 };
 
 enum AudioRoute {
@@ -37,6 +38,7 @@ enum AudioRoute {
         case EARPIECE_HEADSET:
         case BUILT_IN_MICROPHONE:
             return [NSNumber numberWithInt:ROUTE_BUILT_IN];
+        case BUILT_IN_MICROPHONE_SPEAKER:
         case SPEAKER:
             return [NSNumber numberWithInt:ROUTE_SPEAKER];
         case BLUETOOTH:
@@ -70,7 +72,7 @@ RCT_EXPORT_METHOD(enumerateDevices:(RCTResponseSenderBlock)callback)
         if (device.position == AVCaptureDevicePositionBack) {
             position = @"environment";
         } else if (device.position == AVCaptureDevicePositionFront) {
-            position = @"front";
+            position = @"user";
         }
         NSString *label = @"Unknown video device";
         if (device.localizedName != nil) {
@@ -104,6 +106,13 @@ RCT_EXPORT_METHOD(enumerateDevices:(RCTResponseSenderBlock)callback)
                              @"audioRoute": [self getAudioRouteFromDeviceType:BUILT_IN_MICROPHONE],
                              }];
     }
+    [devices addObject:@{
+                         @"deviceId": [NSString stringWithFormat:@"%i", BUILT_IN_MICROPHONE_SPEAKER],
+                         @"groupId": @"",
+                         @"label": @"Built in speaker microphone",
+                         @"kind": DEVICE_KIND_AUDIO_INPUT,
+                         @"audioRoute": [self getAudioRouteFromDeviceType:BUILT_IN_MICROPHONE_SPEAKER],
+                         }];
     if(self.hasBluetoothDevice){
         [devices addObject:@{
                              @"deviceId": [NSString stringWithFormat:@"%i", BLUETOOTH],
@@ -173,6 +182,12 @@ RCT_EXPORT_METHOD(enumerateDevices:(RCTResponseSenderBlock)callback)
     return isBluetooth;
 }
 
+
+RCT_EXPORT_METHOD(getAudioRoute: (RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject) {
+    NSLog(@"[Daily] getAudioRoute");
+    resolve([NSNumber numberWithInt:ROUTE_SPEAKER]);
+}
 
 // Some reference links explaining how the audio from IOs works and sample code
 // https://stephen-chen.medium.com/how-to-add-audio-device-action-sheet-to-your-ios-app-e6bc401ccdbc
