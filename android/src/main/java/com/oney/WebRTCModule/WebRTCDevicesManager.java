@@ -3,7 +3,6 @@ package com.oney.WebRTCModule;
 import android.content.Context;
 import android.media.AudioDeviceInfo;
 import android.media.AudioManager;
-import android.os.Build;
 import android.util.Log;
 
 import com.facebook.react.bridge.Arguments;
@@ -62,7 +61,7 @@ public class WebRTCDevicesManager {
         }
     }
 
-    private enum DeviceType {
+    public enum DeviceType {
         BLUETOOTH(AudioRoute.ROUTE_BLUETOOTH),
         HEADSET(AudioRoute.ROUTE_BUILT_IN),
         SPEAKER(AudioRoute.ROUTE_SPEAKER),

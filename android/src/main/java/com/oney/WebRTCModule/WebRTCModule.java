@@ -1016,6 +1016,10 @@ public class WebRTCModule extends ReactContextBaseJavaModule {
     @ReactMethod
     public void setAudioRoute(int audioRoute) {
         this.webRTCDevicesManager.setAudioRoute(audioRoute);
+        // changing the audio mode so Daily won't automatically affect anymore to change the desired audio route
+        if(this.dailyAudioManager != null){
+            this.dailyAudioManager.setMode(DailyAudioManager.Mode.USER_DEFINED);
+        }
     }
 
     @ReactMethod
@@ -1045,7 +1049,7 @@ public class WebRTCModule extends ReactContextBaseJavaModule {
         }
         if (dailyAudioManager == null) {
             ReactApplicationContext reactContext = getReactApplicationContext();
-            dailyAudioManager = new DailyAudioManager(reactContext, audioMode);
+            //dailyAudioManager = new DailyAudioManager(reactContext, audioMode, this.webRTCDevicesManager);
         }
         else {
             dailyAudioManager.setMode(audioMode);

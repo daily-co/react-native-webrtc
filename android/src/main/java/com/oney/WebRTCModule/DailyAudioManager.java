@@ -1,5 +1,6 @@
 package com.oney.WebRTCModule;
 
+import android.annotation.SuppressLint;
 import android.content.Context;
 import android.media.AudioAttributes;
 import android.media.AudioDeviceCallback;
@@ -19,6 +20,8 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import com.oney.WebRTCModule.WebRTCDevicesManager.DeviceType;
+import com.oney.WebRTCModule.WebRTCDevicesManager.AudioRoute;
 
 public class DailyAudioManager implements AudioManager.OnAudioFocusChangeListener {
     static final String TAG = DailyAudioManager.class.getCanonicalName();
@@ -26,16 +29,11 @@ public class DailyAudioManager implements AudioManager.OnAudioFocusChangeListene
     public enum Mode {
         IDLE,
         VIDEO_CALL,
-        VOICE_CALL
+        VOICE_CALL,
+        USER_DEFINED
     }
 
-    private enum DeviceType {
-        BLUETOOTH,
-        HEADSET,
-        SPEAKER,
-        EARPIECE
-    }
-
+    private WebRTCDevicesManager webRTCDevicesManager;
     private AudioManager audioManager;
     private DeviceEventManagerModule.RCTDeviceEventEmitter eventEmitter;
     private Mode mode;
@@ -60,7 +58,7 @@ public class DailyAudioManager implements AudioManager.OnAudioFocusChangeListene
         }
     };
 
-    public DailyAudioManager(ReactApplicationContext reactContext, Mode initialMode) {
+    public DailyAudioManager(ReactApplicationContext reactContext, Mode initialMode, WebRTCDevicesManager webRTCDevicesManager) {
         reactContext.addLifecycleEventListener(new LifecycleEventListener() {
             @Override
             public void onHostResume() {
@@ -86,6 +84,7 @@ public class DailyAudioManager implements AudioManager.OnAudioFocusChangeListene
                 });
             }
         });
+        this.webRTCDevicesManager = webRTCDevicesManager;
         this.audioManager = (AudioManager) reactContext.getSystemService(Context.AUDIO_SERVICE);
         this.eventEmitter = reactContext.getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter.class);
         this.mode = initialMode;
@@ -137,6 +136,7 @@ public class DailyAudioManager implements AudioManager.OnAudioFocusChangeListene
             case IDLE:
                 transitionOutOfCallMode();
                 break;
+            case USER_DEFINED:
             case VIDEO_CALL:
             case VOICE_CALL:
                 transitionToCurrentCallMode(previousMode);
@@ -161,15 +161,13 @@ public class DailyAudioManager implements AudioManager.OnAudioFocusChangeListene
     // Does things in the reverse order of transitionOutOfCallMode()
     private void transitionToCurrentCallMode(Mode previousMode) {
         // Already in a call, so all we have to do is configure devices
-        if (previousMode == Mode.VIDEO_CALL || previousMode == Mode.VOICE_CALL) {
+        if (previousMode == Mode.VIDEO_CALL || previousMode == Mode.VOICE_CALL || previousMode == Mode.USER_DEFINED) {
             configureDevicesForCurrentMode();
         } else {
             // Configure devices
             configureDevicesForCurrentMode();
-
             // Request audio focus
             requestAudioFocus();
-
             // Start listening for device changes
             audioManager.registerAudioDeviceCallback(audioDeviceCallback, null);
         }
@@ -209,24 +207,25 @@ public class DailyAudioManager implements AudioManager.OnAudioFocusChangeListene
 
     private void configureDevicesForCurrentMode() {
         Log.d(TAG, "configureDevicesForCurrentMode => " + mode);
+        if(mode == Mode.USER_DEFINED){
+            return; // we don't influentiate if the user is commanding the device selection
+        }
         if (mode == Mode.IDLE) {
-            audioManager.setMode(AudioManager.MODE_NORMAL);
-            audioManager.setSpeakerphoneOn(false);
-            toggleBluetooth(false);
+            this.audioManager.setMode(AudioManager.MODE_NORMAL);
+            this.webRTCDevicesManager.setAudioRoute(AudioRoute.ROUTE_BUILT_IN.getValue());
         } else {
-            audioManager.setMode(AudioManager.MODE_IN_COMMUNICATION);
-            Set<DeviceType> availableDeviceTypes = getAvailableDeviceTypes();
-            DeviceType preferredDeviceType = getPreferredDeviceTypeForCurrentMode(availableDeviceTypes);
-            Log.d(TAG, "configureDevicesForCurrentMode: preferring device type " + preferredDeviceType);
-            audioManager.setSpeakerphoneOn(shouldSpeakerphoneBeOn(preferredDeviceType));
-            toggleBluetooth(shouldBluetoothBeOn(preferredDeviceType));
-            audioManager.setMicrophoneMute(false);
+            this.audioManager.setMode(AudioManager.MODE_IN_COMMUNICATION);
+            Set<DeviceType> availableDeviceTypes = this.getAvailableDeviceTypes();
+            AudioRoute audioRoute = this.getPreferredRouteForCurrentMode(availableDeviceTypes);
+            Log.d(TAG, "configureDevicesForCurrentMode: preferring audio route " + audioRoute);
+            this.webRTCDevicesManager.setAudioRoute(audioRoute.getValue());
         }
     }
 
     private Set<DeviceType> getAvailableDeviceTypes() {
         Set<DeviceType> deviceTypes = new HashSet<DeviceType>();
-        AudioDeviceInfo[] devices = audioManager.getDevices(AudioManager.GET_DEVICES_ALL);
+        @SuppressLint("WrongConstant")
+        AudioDeviceInfo[] devices = this.audioManager.getDevices(AudioManager.GET_DEVICES_ALL);
         for (AudioDeviceInfo info : devices) {
             switch (info.getType()) {
                 case AudioDeviceInfo.TYPE_BLUETOOTH_SCO:
@@ -248,38 +247,14 @@ public class DailyAudioManager implements AudioManager.OnAudioFocusChangeListene
         return deviceTypes;
     }
 
-    private DeviceType getPreferredDeviceTypeForCurrentMode(Set<DeviceType> availableDeviceTypes) {
+    private AudioRoute getPreferredRouteForCurrentMode(Set<DeviceType> availableDeviceTypes) {
         if (availableDeviceTypes.contains(DeviceType.BLUETOOTH)) {
-            return DeviceType.BLUETOOTH;
+            return AudioRoute.ROUTE_BLUETOOTH;
         }
         if (availableDeviceTypes.contains(DeviceType.HEADSET)) {
-            return DeviceType.HEADSET;
+            return AudioRoute.ROUTE_BUILT_IN;
         }
-        if (mode == Mode.VIDEO_CALL && availableDeviceTypes.contains(DeviceType.SPEAKER)) {
-            return DeviceType.SPEAKER;
-        }
-        if (mode == Mode.VOICE_CALL && availableDeviceTypes.contains(DeviceType.EARPIECE)) {
-            return DeviceType.EARPIECE;
-        }
-        return null;
-    }
-
-    private boolean shouldSpeakerphoneBeOn(DeviceType preferredDeviceType) {
-        return preferredDeviceType == DeviceType.SPEAKER;
-    }
-
-    private boolean shouldBluetoothBeOn(DeviceType preferredDeviceType) {
-        return preferredDeviceType == DeviceType.BLUETOOTH;
-    }
-
-    private void toggleBluetooth(boolean on) {
-        if (on) {
-            audioManager.startBluetoothSco();
-            audioManager.setBluetoothScoOn(true);
-        } else {
-            audioManager.setBluetoothScoOn(false);
-            audioManager.stopBluetoothSco();
-        }
+        return (mode == Mode.VIDEO_CALL) ? AudioRoute.ROUTE_SPEAKER : AudioRoute.ROUTE_BUILT_IN;
     }
 
     private void sendAudioFocusChangeEvent(boolean hasFocus) {
