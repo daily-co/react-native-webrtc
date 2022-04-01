@@ -6,10 +6,7 @@
 //
 
 #import "WebRTCModule.h"
-
-@interface WebRTCModule (DevicesManager)
-
-@end
+#import "WebRTCModule+DevicesManager.h"
 
 @implementation WebRTCModule (DevicesManager)
 
@@ -25,12 +22,6 @@ enum DeviceType {
     BUILT_IN_MICROPHONE_SPEAKER=5,
     CAMERA_USER=6,
     CAMERA_ENVIRONMENT=7,
-};
-
-enum AudioRoute {
-    ROUTE_BUILT_IN=1,
-    ROUTE_SPEAKER=2,
-    ROUTE_BLUETOOTH=3,
 };
 
 - (NSNumber*)getAudioRouteFromDeviceType:(enum DeviceType)deviceType {

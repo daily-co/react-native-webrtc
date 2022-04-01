@@ -6,6 +6,7 @@
 //
 
 #import "WebRTCModule.h"
+#import "WebRTCModule+DevicesManager.h"
 
 #import <objc/runtime.h>
 #import <WebRTC/RTCAudioSession.h>
@@ -144,58 +145,22 @@ RCT_EXPORT_METHOD(setDailyAudioMode:(NSString *)audioMode) {
   // Apply the chosen audio mode right away if the audio session is already
   // active. Otherwise, it will be applied when the session becomes active.
   RTCAudioSession *audioSession = RTCAudioSession.sharedInstance;
+  NSLog(@"[Daily] setDailyAudioMode: %@", audioMode);
   if (audioSession.isActive) {
     [self applyAudioMode:audioMode toSession:audioSession];
   }
 }
 
 - (void)applyAudioMode:(NSString *)audioMode toSession:(RTCAudioSession *)audioSession {
+  NSLog(@"[Daily] applyAudioMode: %@", audioMode);
   // Do nothing if we're attempting to "unset" the in-call audio mode (for now
   // it doesn't seem like there's anything to do).
   if ([audioMode isEqualToString:AUDIO_MODE_IDLE]) {
     return;
   }
   
-  // Ducking other apps' audio implicitly enables allowing mixing audio with
-  // other apps, which allows this app to stay alive in the backgrounnd during
-  // a call (assuming it has the voip background mode set).
-  AVAudioSessionCategoryOptions categoryOptions = (AVAudioSessionCategoryOptionAllowBluetooth |
-                                                   AVAudioSessionCategoryOptionDuckOthers);
-  if ([audioMode isEqualToString:AUDIO_MODE_VIDEO_CALL]) {
-    categoryOptions |= AVAudioSessionCategoryOptionDefaultToSpeaker;
-  }
-  [self audioSessionSetCategory:AVAudioSessionCategoryPlayAndRecord toSession:audioSession options:categoryOptions];
-  
-  
-  NSString *mode = ([audioMode isEqualToString:AUDIO_MODE_VIDEO_CALL] ?
-                    AVAudioSessionModeVideoChat :
-                    AVAudioSessionModeVoiceChat);
-  [self audioSessionSetMode:mode toSession:audioSession];
-}
-
-- (void)audioSessionSetCategory:(NSString *)audioCategory
-                      toSession:(RTCAudioSession *)audioSession
-                        options:(AVAudioSessionCategoryOptions)options
-{
-  @try {
-    [audioSession setCategory:audioCategory
-                  withOptions:options
-                        error:nil];
-    NSLog(@"[Daily] audioSession.setCategory: %@, withOptions: %lu success", audioCategory, (unsigned long)options);
-  } @catch (NSException *e) {
-    NSLog(@"[Daily] audioSession.setCategory: %@, withOptions: %lu fail: %@", audioCategory, (unsigned long)options, e.reason);
-  }
-}
-
-- (void)audioSessionSetMode:(NSString *)audioMode
-                  toSession:(RTCAudioSession *)audioSession
-{
-  @try {
-    [audioSession setMode:audioMode error:nil];
-    NSLog(@"[Daily] audioSession.setMode(%@) success", audioMode);
-  } @catch (NSException *e) {
-    NSLog(@"[Daily] audioSession.setMode(%@) fail: %@", audioMode, e.reason);
-  }
+  int audioRoute = self.hasBluetoothDevice ? ROUTE_BLUETOOTH : ([audioMode isEqualToString:AUDIO_MODE_VIDEO_CALL] ? ROUTE_SPEAKER: ROUTE_BUILT_IN);
+  [self setAudioRoute:[NSNumber numberWithInt:audioRoute]];
 }
 
 @end
