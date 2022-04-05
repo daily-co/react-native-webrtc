@@ -134,7 +134,7 @@ public class WebRTCModule extends ReactContextBaseJavaModule {
                 .createPeerConnectionFactory();
 
         getUserMediaImpl = new GetUserMediaImpl(this, reactContext);
-        webRTCDevicesManager = new WebRTCDevicesManager(reactContext);
+        webRTCDevicesManager = new WebRTCDevicesManager(this, reactContext);
     }
 
     @NonNull
@@ -1024,7 +1024,7 @@ public class WebRTCModule extends ReactContextBaseJavaModule {
 
     @ReactMethod
     public void startMediaDevicesEventMonitor() {
-        //TODO implementar
+        this.webRTCDevicesManager.startMediaDevicesEventMonitor();
     }
 
     @ReactMethod
