@@ -1023,6 +1023,11 @@ public class WebRTCModule extends ReactContextBaseJavaModule {
     }
 
     @ReactMethod
+    public void startMediaDevicesEventMonitor() {
+        //TODO implementar
+    }
+
+    @ReactMethod
     public void getAudioRoute(Promise promise) {
         ThreadUtils.runOnExecutor(() -> {
             int audioRoute = this.webRTCDevicesManager.getAudioRoute();
