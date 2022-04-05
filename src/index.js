@@ -1,4 +1,3 @@
-
 import ScreenCapturePickerView from './ScreenCapturePickerView';
 import RTCPeerConnection from './RTCPeerConnection';
 import RTCIceCandidate from './RTCIceCandidate';
@@ -35,6 +34,7 @@ function registerGlobals() {
     navigator.mediaDevices.getUserMedia = mediaDevices.getUserMedia.bind(mediaDevices);
     navigator.mediaDevices.getDisplayMedia = mediaDevices.getDisplayMedia.bind(mediaDevices);
     navigator.mediaDevices.enumerateDevices = mediaDevices.enumerateDevices.bind(mediaDevices);
+    navigator.mediaDevices.addEventListener = mediaDevices.addEventListener.bind(mediaDevices);
 
     global.RTCPeerConnection = RTCPeerConnection;
     global.RTCIceCandidate = RTCIceCandidate;
