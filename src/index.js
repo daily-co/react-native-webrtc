@@ -35,6 +35,9 @@ function registerGlobals() {
     navigator.mediaDevices.getDisplayMedia = mediaDevices.getDisplayMedia.bind(mediaDevices);
     navigator.mediaDevices.enumerateDevices = mediaDevices.enumerateDevices.bind(mediaDevices);
     navigator.mediaDevices.addEventListener = mediaDevices.addEventListener.bind(mediaDevices);
+    mediaDevices.addEventListener('devicechange', () => {
+        if (navigator.mediaDevices.ondevicechange) navigator.mediaDevices.ondevicechange();
+    });
 
     global.RTCPeerConnection = RTCPeerConnection;
     global.RTCIceCandidate = RTCIceCandidate;
