@@ -182,6 +182,10 @@ RCT_EXPORT_METHOD(enumerateDevices:(RCTResponseSenderBlock)callback)
             [portType isEqualToString:AVAudioSessionPortHeadphones]);
 }
 
+- (BOOL)isBuiltInMic:(NSString*)portType {
+    return ([portType isEqualToString:AVAudioSessionPortBuiltInMic]);
+}
+
 
 RCT_EXPORT_METHOD(getAudioRoute: (RCTPromiseResolveBlock)resolve
                   rejecter:(RCTPromiseRejectBlock)reject) {
@@ -247,6 +251,16 @@ RCT_EXPORT_METHOD(setAudioRoute:(nonnull NSNumber*)audioRoute) {
     // Force to speaker. We only need to do that the cases a wired headset is connected, but we still want to force to speaker
     if([audioRoute intValue] == ROUTE_SPEAKER){
         [audioSession overrideOutputAudioPort: AVAudioSessionPortOverrideSpeaker error: nil];
+    } else if([audioRoute intValue] == ROUTE_BUILT_IN){
+        [audioSession overrideOutputAudioPort: AVAudioSessionPortOverrideNone error: nil];
+        NSArray<AVAudioSessionPortDescription *> *availableInputs = [audioSession availableInputs];
+        for (AVAudioSessionPortDescription *device in availableInputs) {
+            if([self isBuiltInMic:[device portType]]){
+                NSLog(@"[Daily] forcing preferred input to built in device");
+                [audioSession setPreferredInput:device error:nil];
+                return;
+            }
+        }
     }
 }
 
