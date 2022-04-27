@@ -134,7 +134,7 @@ public class WebRTCModule extends ReactContextBaseJavaModule {
                 .createPeerConnectionFactory();
 
         getUserMediaImpl = new GetUserMediaImpl(this, reactContext);
-        webRTCDevicesManager = new WebRTCDevicesManager(reactContext);
+        webRTCDevicesManager = new WebRTCDevicesManager(this, reactContext);
     }
 
     @NonNull
@@ -1020,6 +1020,11 @@ public class WebRTCModule extends ReactContextBaseJavaModule {
         if(this.dailyAudioManager != null){
             this.dailyAudioManager.setMode(DailyAudioManager.Mode.USER_DEFINED);
         }
+    }
+
+    @ReactMethod
+    public void startMediaDevicesEventMonitor() {
+        this.webRTCDevicesManager.startMediaDevicesEventMonitor();
     }
 
     @ReactMethod

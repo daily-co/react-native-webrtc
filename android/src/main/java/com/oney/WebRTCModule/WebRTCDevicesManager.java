@@ -1,6 +1,7 @@
 package com.oney.WebRTCModule;
 
 import android.content.Context;
+import android.media.AudioDeviceCallback;
 import android.media.AudioDeviceInfo;
 import android.media.AudioManager;
 import android.util.Log;
@@ -20,6 +21,7 @@ import java.util.Arrays;
 public class WebRTCDevicesManager {
 
     static final String TAG = WebRTCDevicesManager.class.getCanonicalName();
+    static final String ON_DEVICE_CHANGE_EVENT = "mediaDevicesOnDeviceChange";
 
     public enum DeviceKind {
         // Those constants are defined on the webrtc specification
@@ -78,14 +80,32 @@ public class WebRTCDevicesManager {
         }
     }
 
+    private AudioDeviceCallback audioDeviceCallback = new AudioDeviceCallback() {
+        @Override
+        public void onAudioDevicesAdded(AudioDeviceInfo[] addedDevices) {
+            WebRTCDevicesManager.this.webRTCModule.sendEvent(ON_DEVICE_CHANGE_EVENT, null);
+        }
+
+        @Override
+        public void onAudioDevicesRemoved(AudioDeviceInfo[] removedDevices) {
+            WebRTCDevicesManager.this.webRTCModule.sendEvent(ON_DEVICE_CHANGE_EVENT, null);
+        }
+    };
+
     private final CameraEnumerator cameraEnumerator;
     private AudioManager audioManager;
     private ReactApplicationContext reactContext;
+    private final WebRTCModule webRTCModule;
 
-    public WebRTCDevicesManager(ReactApplicationContext reactContext) {
+    public WebRTCDevicesManager(WebRTCModule webRTCModule, ReactApplicationContext reactContext) {
+        this.webRTCModule = webRTCModule;
         this.reactContext = reactContext;
         this.audioManager = (AudioManager) reactContext.getSystemService(Context.AUDIO_SERVICE);
         this.cameraEnumerator = this.createCameraEnumerator();
+    }
+
+    public void startMediaDevicesEventMonitor(){
+        this.audioManager.registerAudioDeviceCallback(audioDeviceCallback, null);
     }
 
     private CameraEnumerator createCameraEnumerator() {

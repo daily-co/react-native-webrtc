@@ -289,4 +289,22 @@ RCT_EXPORT_METHOD(setAudioRoute:(nonnull NSNumber*)audioRoute) {
   }
 }
 
+- (void)devicesChanged:(NSNotification *)notification {
+    // Possible change reasons: AVAudioSessionRouteChangeReasonOldDeviceUnavailable AVAudioSessionRouteChangeReasonNewDeviceAvailable
+    NSInteger changeReason = [[notification.userInfo objectForKey:AVAudioSessionRouteChangeReasonKey] integerValue];
+    NSLog(@"[Daily] devicesChanged %zd", changeReason);
+    
+    // AVAudioSessionRouteDescription *oldRoute = [notification.userInfo objectForKey:AVAudioSessionRouteChangePreviousRouteKey];
+    // NSString *oldOutput = [[oldRoute.outputs objectAtIndex:0] portType];
+    // AVAudioSessionRouteDescription *newRoute = [audioSession currentRoute];
+    // NSString *newOutput = [[newRoute.outputs objectAtIndex:0] portType];
+    
+    [self sendEventWithName:kEventMediaDevicesOnDeviceChange body:@{}];
+}
+
+RCT_EXPORT_METHOD(startMediaDevicesEventMonitor) {
+    NSLog(@"[Daily] startMediaDevicesEventMonitor");
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(devicesChanged:) name:AVAudioSessionRouteChangeNotification object:nil];
+}
+
 @end
