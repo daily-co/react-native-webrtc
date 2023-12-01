@@ -76,8 +76,6 @@ public class DailyCamera2Session implements CameraSession{
     private OrientationEventListener orientatationListener;
     private int angleRotation = 0;
 
-
-    //TODO see if we are going to use for something
     private int calculateOrientation(int angle) {
         if ((angle >= 45 && angle <= 135)) {
             return 90; //landscape
@@ -222,14 +220,8 @@ public class DailyCamera2Session implements CameraSession{
     }
 
 
-    /*PORTRAIT -> 0
-    LANDSCAPE_RIGHT -> 90
-    PORTRAIT_UPSIDE_DOWN -> 180
-    LANDSCAPE_LEFT -> 270*/
     private int getFrameOrientation() {
-        // TODO lock the expected orientation here
         int rotation = 360 - this.calculateOrientation(this.angleRotation);
-        //int rotation = 90;
         //int rotation = CameraSession.getDeviceOrientation(this.applicationContext);
 
         if (!this.isCameraFrontFacing) {
@@ -320,9 +312,6 @@ public class DailyCamera2Session implements CameraSession{
             if (mirror) {
                transformMatrix.preScale(-1.0F, 1.0F);
             }
-            /*if (!DailyCamera2Session.this.isCameraFrontFacing) {
-                rotation = 360 - rotation;
-            }*/
             transformMatrix.preRotate((float)rotation);
             transformMatrix.preTranslate(-0.5F, -0.5F);
             return buffer.applyTransformMatrix(transformMatrix, buffer.getWidth(), buffer.getHeight());
