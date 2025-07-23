@@ -111,7 +111,7 @@ public class WebRTCModule extends ReactContextBaseJavaModule {
         getUserMediaImpl = new GetUserMediaImpl(this, reactContext);
         dailyWebRTCDevicesManager = new DailyWebRTCDevicesManager(this, reactContext);
         // Enabling to react-native-webrtc automatically start and stop media projection service
-        WebRTCModuleOptions.getInstance().enableMediaProjectionService = true;
+        WebRTCModuleOptions.getInstance().enableMediaProjectionService = false;
     }
 
     @NonNull
