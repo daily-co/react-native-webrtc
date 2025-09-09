@@ -196,7 +196,6 @@
 
 -(NSString *)facingMode {
     return self.usingFrontCamera ? @"user" : @"environment";
-    }
 }
 
 - (NSDictionary *)getSettings {
