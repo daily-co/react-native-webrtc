@@ -1,11 +1,11 @@
-import { Component, forwardRef } from 'react';
+import { forwardRef } from 'react';
 import ReactNative, { UIManager } from 'react-native';
 
 import RTCView, { RTCIOSPIPOptions, RTCVideoViewProps } from './RTCView';
 
 export interface RTCPIPViewProps extends RTCVideoViewProps {
   iosPIP?: RTCIOSPIPOptions & {
-    fallbackView?: Component;
+    fallbackView?: React.ReactNode;
   };
 }
 
