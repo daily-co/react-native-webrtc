@@ -371,10 +371,9 @@ public class CameraCaptureController extends AbstractVideoCaptureController {
             actualSize = Camera2Helper.findClosestCaptureFormat(cameraManager, cameraName, targetWidth, targetHeight);
         }
 
-            @Override
-            public void onCameraSwitchError(String s) {
-                Log.e(TAG, "Error switching camera: " + s);
-                handler.onSwitchCameraDone(facingMode());
+        if (actualSize != null) {
+            actualWidth = actualSize.width;
+            actualHeight = actualSize.height;
         }
     }
 

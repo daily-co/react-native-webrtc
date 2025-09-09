@@ -182,7 +182,7 @@
 
     if (self.running && hasChanged) {
         [self startCapture];
-    return [self facingMode];
+    }
 }
 
 -(NSString *)switchCamera {
