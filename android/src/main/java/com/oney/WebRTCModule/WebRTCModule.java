@@ -68,10 +68,10 @@ public class WebRTCModule extends ReactContextBaseJavaModule {
         String fieldTrials = options.fieldTrials;
 
         PeerConnectionFactory.initialize(PeerConnectionFactory.InitializationOptions.builder(reactContext)
-                                                 .setFieldTrials(fieldTrials)
-                                                 .setNativeLibraryLoader(new LibraryLoader())
-                                                 .setInjectableLogger(injectableLogger, loggingSeverity)
-                                                 .createInitializationOptions());
+                        .setFieldTrials(fieldTrials)
+                        .setNativeLibraryLoader(new LibraryLoader())
+                        .setInjectableLogger(injectableLogger, loggingSeverity)
+                        .createInitializationOptions());
 
         if (injectableLogger == null && loggingSeverity != null) {
             Logging.enableLogToDebugOutput(loggingSeverity);
@@ -103,6 +103,9 @@ public class WebRTCModule extends ReactContextBaseJavaModule {
                            .setVideoDecoderFactory(decoderFactory)
                            .createPeerConnectionFactory();
 
+        // PeerConnectionFactory now owns the adm native pointer, and we don't need it anymore.
+        adm.release();
+
         // Saving the encoder and decoder factories to get codec info later when needed.
         mVideoEncoderFactory = encoderFactory;
         mVideoDecoderFactory = decoderFactory;
@@ -118,14 +121,6 @@ public class WebRTCModule extends ReactContextBaseJavaModule {
     @Override
     public String getName() {
         return "WebRTCModule";
-    }
-
-    @Override
-    public void onCatalystInstanceDestroy() {
-        if (mAudioDeviceModule != null) {
-            mAudioDeviceModule.release();
-        }
-        super.onCatalystInstanceDestroy();
     }
 
     private PeerConnection getPeerConnection(int id) {
@@ -715,7 +710,7 @@ public class WebRTCModule extends ReactContextBaseJavaModule {
     }
 
     @ReactMethod(isBlockingSynchronousMethod = true)
-    public void transceiverSetCodecPreferences(int id, String senderId, ReadableArray codecPreferences) {
+    public boolean transceiverSetCodecPreferences(int id, String senderId, ReadableArray codecPreferences) {
         ThreadUtils.runOnExecutor(() -> {
             WritableMap identifier = Arguments.createMap();
             WritableMap params = Arguments.createMap();
@@ -774,6 +769,7 @@ public class WebRTCModule extends ReactContextBaseJavaModule {
                 Log.d(TAG, "transceiverSetCodecPreferences(): " + e.getMessage());
             }
         });
+        return true;
     }
 
     @ReactMethod
@@ -939,6 +935,18 @@ public class WebRTCModule extends ReactContextBaseJavaModule {
     }
 
     @ReactMethod
+    public void mediaStreamTrackApplyConstraints(String id, ReadableMap constraints, Promise promise) {
+        ThreadUtils.runOnExecutor(() -> {
+            MediaStreamTrack track = getLocalTrack(id);
+            if (track != null) {
+                getUserMediaImpl.applyConstraints(id, constraints, promise);
+            } else {
+                promise.reject(new Exception("mediaStreamTrackApplyConstraints() could not find track " + id));
+            }
+        });
+    }
+
+    @ReactMethod
     public void mediaStreamTrackSetVolume(int pcId, String id, double volume) {
         ThreadUtils.runOnExecutor(() -> {
             MediaStreamTrack track = getTrack(pcId, id);
@@ -985,8 +993,8 @@ public class WebRTCModule extends ReactContextBaseJavaModule {
     }
 
     @ReactMethod
-    public void mediaStreamTrackSetVideoEffect(String id, String name) {
-        ThreadUtils.runOnExecutor(() -> { getUserMediaImpl.setVideoEffect(id, name); });
+    public void mediaStreamTrackSetVideoEffects(String id, ReadableArray names) {
+        ThreadUtils.runOnExecutor(() -> { getUserMediaImpl.setVideoEffects(id, names); });
     }
 
     @ReactMethod
@@ -1287,7 +1295,7 @@ public class WebRTCModule extends ReactContextBaseJavaModule {
             PeerConnectionObserver pco = mPeerConnectionObservers.get(pcId);
             if (pco == null || pco.getPeerConnection() == null) {
                 Log.d(TAG, "receiverGetStats() peerConnection is null");
-                promise.reject(new Exception("PeerConnection ID not found"));
+                promise.resolve(StringUtils.statsToJSON(new RTCStatsReport(0, new HashMap<>())));
             } else {
                 pco.receiverGetStats(receiverId, promise);
             }
@@ -1300,7 +1308,7 @@ public class WebRTCModule extends ReactContextBaseJavaModule {
             PeerConnectionObserver pco = mPeerConnectionObservers.get(pcId);
             if (pco == null || pco.getPeerConnection() == null) {
                 Log.d(TAG, "senderGetStats() peerConnection is null");
-                promise.reject(new Exception("PeerConnection ID not found"));
+                promise.resolve(StringUtils.statsToJSON(new RTCStatsReport(0, new HashMap<>())));
             } else {
                 pco.senderGetStats(senderId, promise);
             }
@@ -1317,14 +1325,17 @@ public class WebRTCModule extends ReactContextBaseJavaModule {
                 return;
             }
 
-            if (!(candidateMap.hasKey("sdpMid") && candidateMap.hasKey("sdpMLineIndex")
-                        && candidateMap.hasKey("sdpMid"))) {
+            if (!candidateMap.hasKey("sdpMid") && !candidateMap.hasKey("sdpMLineIndex")) {
                 promise.reject("E_TYPE_ERROR", "Invalid argument");
                 return;
             }
 
-            IceCandidate candidate = new IceCandidate(candidateMap.getString("sdpMid"),
-                    candidateMap.getInt("sdpMLineIndex"),
+            IceCandidate candidate = new IceCandidate(candidateMap.hasKey("sdpMid") && !candidateMap.isNull("sdpMid")
+                            ? candidateMap.getString("sdpMid")
+                            : "",
+                    candidateMap.hasKey("sdpMLineIndex") && !candidateMap.isNull("sdpMLineIndex")
+                            ? candidateMap.getInt("sdpMLineIndex")
+                            : 0,
                     candidateMap.getString("candidate"));
 
             peerConnection.addIceCandidate(candidate, new AddIceObserver() {
@@ -1353,7 +1364,7 @@ public class WebRTCModule extends ReactContextBaseJavaModule {
             PeerConnectionObserver pco = mPeerConnectionObservers.get(peerConnectionId);
             if (pco == null || pco.getPeerConnection() == null) {
                 Log.d(TAG, "peerConnectionGetStats() peerConnection is null");
-                promise.reject(new Exception("PeerConnection ID not found"));
+                promise.resolve(StringUtils.statsToJSON(new RTCStatsReport(0, new HashMap<>())));
             } else {
                 pco.getStats(promise);
             }

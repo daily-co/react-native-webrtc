@@ -2,52 +2,28 @@
 #import <objc/runtime.h>
 
 #import <React/RCTLog.h>
+#import <React/RCTUIManager.h>
+#import <React/RCTView.h>
+
 #import <WebRTC/RTCMediaStream.h>
-#if !TARGET_OS_OSX
-#import <WebRTC/RTCMTLVideoView.h>
-#else
+#if TARGET_OS_OSX
 #import <WebRTC/RTCMTLNSVideoView.h>
+#else
+#import <WebRTC/RTCMTLVideoView.h>
 #endif
 #import <WebRTC/RTCCVPixelBuffer.h>
 #import <WebRTC/RTCVideoFrame.h>
 #import <WebRTC/RTCVideoTrack.h>
 
+#import "PIPController.h"
 #import "RTCVideoViewManager.h"
 #import "WebRTCModule.h"
-
-/**
- * In the fashion of
- * https://www.w3.org/TR/html5/embedded-content-0.html#dom-video-videowidth
- * and https://www.w3.org/TR/html5/rendering.html#video-object-fit, resembles
- * the CSS style {@code object-fit}.
- */
-typedef NS_ENUM(NSInteger, RTCVideoViewObjectFit) {
-    /**
-     * The contain value defined by https://www.w3.org/TR/css3-images/#object-fit:
-     *
-     * The replaced content is sized to maintain its aspect ratio while fitting
-     * within the element's content box.
-     */
-    RTCVideoViewObjectFitContain,
-    /**
-     * The cover value defined by https://www.w3.org/TR/css3-images/#object-fit:
-     *
-     * The replaced content is sized to maintain its aspect ratio while filling
-     * the element's entire content box.
-     */
-    RTCVideoViewObjectFitCover
-};
 
 /**
  * Implements an equivalent of {@code HTMLVideoElement} i.e. Web's video
  * element.
  */
-
-#if !TARGET_OS_OSX
-@interface RTCVideoView : UIView<RTCVideoViewDelegate>
-#else
-@interface RTCVideoView : NSView<RTCVideoViewDelegate>
-#endif
+@interface RTCVideoView : RCTView<RTCVideoViewDelegate>
 
 /**
  * The indicator which determines whether this {@code RTCVideoView} is to mirror
@@ -64,16 +40,21 @@ typedef NS_ENUM(NSInteger, RTCVideoViewObjectFit) {
  */
 @property(nonatomic) RTCVideoViewObjectFit objectFit;
 
+@property(nonatomic) BOOL enablePIP;
+
+@property(nonatomic, strong) API_AVAILABLE(ios(15.0)) PIPController *pipController;
+
 /**
- * The {@link RRTCVideoRenderer} which implements the actual rendering and which
- * fits within this view so that the rendered video preserves the aspect ratio of
- * {@link #_videoSize}.
+ * The {@link RRTCVideoRenderer} which implements the actual rendering.
  */
-#if !TARGET_OS_OSX
-@property(nonatomic, readonly) __kindof UIView<RTCVideoRenderer> *videoView;
+#if TARGET_OS_OSX
+@property(nonatomic, readonly) RTCMTLNSVideoView *videoView;
 #else
-@property(nonatomic, readonly) __kindof NSView<RTCVideoRenderer> *videoView;
+@property(nonatomic, readonly) RTCMTLVideoView *videoView;
 #endif
+
+// Add a reference to the view manager
+@property(nonatomic, weak) RTCVideoViewManager *viewManager;
 
 /**
  * The {@link RTCVideoTrack}, if any, which this instance renders.
@@ -85,26 +66,24 @@ typedef NS_ENUM(NSInteger, RTCVideoViewObjectFit) {
  */
 @property(nonatomic, weak) WebRTCModule *module;
 
+@property(nonatomic, copy) RCTDirectEventBlock onDimensionsChange;
+
 @end
 
-@implementation RTCVideoView {
-    /**
-     * The width and height of the video (frames) rendered by {@link #subview}.
-     */
-    CGSize _videoSize;
-}
+@implementation RTCVideoView
 
 @synthesize videoView = _videoView;
+@synthesize pipController = _pipController;
 
 /**
  * Tells this view that its window object changed.
  */
 - (void)didMoveToWindow {
-    // XXX This RTCVideoView strongly retains its videoTrack. The latter strongly
+    // This RTCVideoView strongly retains its videoTrack. The latter strongly
     // retains the former as well though because RTCVideoTrack strongly retains
     // the RTCVideoRenderers added to it. In other words, there is a cycle of
-    // strong retainments and, consequently, there is a memory leak. In order to
-    // break the cycle, have this RTCVideoView as the RTCVideoRenderer of its
+    // strong retainments. In order to break the cycle, and avoid a leak,
+    // have this RTCVideoView as the RTCVideoRenderer of its
     // videoTrack only while this view resides in a window.
     RTCVideoTrack *videoTrack = self.videoTrack;
 
@@ -117,13 +96,6 @@ typedef NS_ENUM(NSInteger, RTCVideoViewObjectFit) {
             dispatch_async(_module.workerQueue, ^{
                 [videoTrack removeRenderer:self.videoView];
             });
-            _videoSize.height = 0;
-            _videoSize.width = 0;
-#if !TARGET_OS_OSX
-            [self setNeedsLayout];
-#else
-            self.needsLayout = YES;
-#endif
         }
     }
 }
@@ -136,88 +108,32 @@ typedef NS_ENUM(NSInteger, RTCVideoViewObjectFit) {
  */
 - (instancetype)initWithFrame:(CGRect)frame {
     if (self = [super initWithFrame:frame]) {
-#if !TARGET_OS_OSX
-        RTCMTLVideoView *subview = [[RTCMTLVideoView alloc] initWithFrame:CGRectZero];
-        subview.delegate = self;
-        _videoView = subview;
-#else
+#if TARGET_OS_OSX
         RTCMTLNSVideoView *subview = [[RTCMTLNSVideoView alloc] initWithFrame:CGRectZero];
         subview.wantsLayer = true;
-        subview.delegate = self;
+        _videoView = subview;
+#else
+        RTCMTLVideoView *subview = [[RTCMTLVideoView alloc] initWithFrame:CGRectZero];
         _videoView = subview;
 #endif
-
-        _videoSize.height = 0;
-        _videoSize.width = 0;
-
-#if !TARGET_OS_OSX
-        self.opaque = NO;
-#endif
-
+        _objectFit = RTCVideoViewObjectFitCover;
         [self addSubview:self.videoView];
+        self.videoView.delegate = self;
     }
+
     return self;
 }
 
-/**
- * Lays out the subview of this instance while preserving the aspect ratio of
- * the video it renders.
- */
-
-#if !TARGET_OS_OSX
-- (void)layoutSubviews {
-#else
+#if TARGET_OS_OSX
 - (void)layout {
-#endif
-#if !TARGET_OS_OSX
-    UIView *subview = self.videoView;
+    [super layout];
 #else
-    NSView *subview = self.videoView;
+- (void)layoutSubviews {
+    [super layoutSubviews];
 #endif
-    if (!subview) {
-        return;
-    }
 
-    CGFloat width = _videoSize.width, height = _videoSize.height;
-    CGRect newValue;
-    if (width <= 0 || height <= 0) {
-        newValue = self.bounds;
-    } else if (RTCVideoViewObjectFitCover == self.objectFit) {  // cover
-        newValue = self.bounds;
-        // Is there a real need to scale subview?
-        if (newValue.size.width != width || newValue.size.height != height) {
-            CGFloat scaleFactor = MAX(newValue.size.width / width, newValue.size.height / height);
-            // Scale both width and height in order to make it obvious that the aspect
-            // ratio is preserved.
-            width *= scaleFactor;
-            height *= scaleFactor;
-            newValue.origin.x += (newValue.size.width - width) / 2.0;
-            newValue.origin.y += (newValue.size.height - height) / 2.0;
-            newValue.size.width = width;
-            newValue.size.height = height;
-        }
-    } else {  // contain
-        // The implementation is in accord with
-        // https://www.w3.org/TR/html5/embedded-content-0.html#the-video-element:
-        //
-        // In the absence of style rules to the contrary, video content should be
-        // rendered inside the element's playback area such that the video content
-        // is shown centered in the playback area at the largest possible size that
-        // fits completely within it, with the video content's aspect ratio being
-        // preserved. Thus, if the aspect ratio of the playback area does not match
-        // the aspect ratio of the video, the video will be shown letterboxed or
-        // pillarboxed. Areas of the element's playback area that do not contain the
-        // video represent nothing.
-        newValue = AVMakeRectWithAspectRatioInsideRect(CGSizeMake(width, height), self.bounds);
-    }
-
-    CGRect oldValue = subview.frame;
-    if (newValue.origin.x != oldValue.origin.x || newValue.origin.y != oldValue.origin.y ||
-        newValue.size.width != oldValue.size.width || newValue.size.height != oldValue.size.height) {
-        subview.frame = newValue;
-    }
-
-    [subview.layer setAffineTransform:self.mirror ? CGAffineTransformMakeScale(-1.0, 1.0) : CGAffineTransformIdentity];
+    CGRect bounds = self.bounds;
+    self.videoView.frame = bounds;
 }
 
 /**
@@ -231,12 +147,68 @@ typedef NS_ENUM(NSInteger, RTCVideoViewObjectFit) {
     if (_mirror != mirror) {
         _mirror = mirror;
 
-#if !TARGET_OS_OSX
-        [self setNeedsLayout];
-#else
-        self.needsLayout = YES;
-#endif
+        self.videoView.transform = mirror ? CGAffineTransformMakeScale(-1.0, 1.0) : CGAffineTransformIdentity;
     }
+}
+
+- (void)insertReactSubview:(UIView *)subview atIndex:(NSInteger)atIndex {
+    // All subviews are treated as fallback views
+    [_pipController insertFallbackView:subview];
+}
+
+- (void)API_AVAILABLE(ios(15.0))setPIPOptions:(NSDictionary *)pipOptions {
+    if (!pipOptions) {
+        _pipController = nil;
+        return;
+    }
+
+    BOOL enabled = YES;
+    BOOL startAutomatically = YES;
+    BOOL stopAutomatically = YES;
+
+    CGSize preferredSize = CGSizeZero;
+
+    if ([pipOptions objectForKey:@"enabled"]) {
+        enabled = [pipOptions[@"enabled"] boolValue];
+    }
+    if ([pipOptions objectForKey:@"startAutomatically"]) {
+        startAutomatically = [pipOptions[@"startAutomatically"] boolValue];
+    }
+    if ([pipOptions objectForKey:@"stopAutomatically"]) {
+        stopAutomatically = [pipOptions[@"stopAutomatically"] boolValue];
+    }
+    if ([pipOptions objectForKey:@"preferredSize"]) {
+        NSDictionary *sizeDict = pipOptions[@"preferredSize"];
+        id width = sizeDict[@"width"];
+        id height = sizeDict[@"height"];
+
+        if ([width isKindOfClass:[NSNumber class]] && [height isKindOfClass:[NSNumber class]]) {
+            preferredSize = CGSizeMake([width doubleValue], [height doubleValue]);
+        }
+    }
+
+    if (!enabled) {
+        _pipController = nil;
+        return;
+    }
+
+    if (!_pipController) {
+        _pipController = [[PIPController alloc] initWithSourceView:self];
+        _pipController.videoTrack = _videoTrack;
+    }
+
+    _pipController.startAutomatically = startAutomatically;
+    _pipController.stopAutomatically = stopAutomatically;
+    _pipController.objectFit = _objectFit;
+    _pipController.preferredSize = preferredSize;
+}
+
+- (void)API_AVAILABLE(ios(15.0))startPIP {
+    [_pipController startPIP];
+}
+
+- (void)API_AVAILABLE(ios(15.0))stopPIP {
+    [_pipController stopPIP];
 }
 
 /**
@@ -246,15 +218,20 @@ typedef NS_ENUM(NSInteger, RTCVideoViewObjectFit) {
  * @param objectFit The value to set on the {@code objectFit} property of this
  * {@code RTCVideoView}.
  */
-- (void)setObjectFit:(RTCVideoViewObjectFit)objectFit {
-    if (_objectFit != objectFit) {
-        _objectFit = objectFit;
+- (void)setObjectFit:(RTCVideoViewObjectFit)fit {
+    if (_objectFit != fit) {
+        _objectFit = fit;
 
 #if !TARGET_OS_OSX
-        [self setNeedsLayout];
-#else
-        self.needsLayout = YES;
+        if (fit == RTCVideoViewObjectFitCover) {
+            self.videoView.videoContentMode = UIViewContentModeScaleAspectFill;
+        } else {
+            self.videoView.videoContentMode = UIViewContentModeScaleAspectFit;
+        }
 #endif
+        if (@available(iOS 15.0, *)) {
+            _pipController.objectFit = fit;
+        }
     }
 }
 
@@ -273,16 +250,9 @@ typedef NS_ENUM(NSInteger, RTCVideoViewObjectFit) {
             dispatch_async(_module.workerQueue, ^{
                 [oldValue removeRenderer:self.videoView];
             });
-            _videoSize.height = 0;
-            _videoSize.width = 0;
-
-#if !TARGET_OS_OSX
-            [self setNeedsLayout];
-#else
-            self.needsLayout = YES;
-#endif
         }
 
+        [_pipController setVideoTrack:videoTrack];
         _videoTrack = videoTrack;
 
         // Clear the videoView by rendering a 2x2 blank frame.
@@ -319,12 +289,7 @@ typedef NS_ENUM(NSInteger, RTCVideoViewObjectFit) {
             CVPixelBufferRelease(pixelBuffer);
         }
 
-        // XXX This RTCVideoView strongly retains its videoTrack. The latter
-        // strongly retains the former as well though because RTCVideoTrack strongly
-        // retains the RTCVideoRenderers added to it. In other words, there is a
-        // cycle of strong retainments and, consequently, there is a memory leak. In
-        // order to break the cycle, have this RTCVideoView as the RTCVideoRenderer
-        // of its videoTrack only while this view resides in a window.
+        // See "didMoveToWindow" above.
         if (videoTrack && self.window) {
             dispatch_async(_module.workerQueue, ^{
                 [videoTrack addRenderer:self.videoView];
@@ -333,27 +298,15 @@ typedef NS_ENUM(NSInteger, RTCVideoViewObjectFit) {
     }
 }
 
-#pragma mark - RTCVideoViewDelegate methods
+- (void)videoView:(id)videoView didChangeVideoSize:(CGSize)size {
+    // Capture the callback block to avoid accessing it across threads
+    RCTDirectEventBlock callback = self.onDimensionsChange;
+    if (callback) {
+        NSDictionary *eventData = @{@"width" : @(size.width), @"height" : @(size.height)};
 
-/**
- * Notifies this {@link RTCVideoViewDelegate} that a specific
- * {@link RTCVideoRenderer} had the size of the video (frames) it renders
- * changed.
- *
- * @param videoView The {@code RTCVideoRenderer} which had the size of the video
- * (frames) it renders changed to the specified size.
- * @param size The new size of the video (frames) to be rendered by the
- * specified {@code videoView}.
- */
-- (void)videoView:(id<RTCVideoRenderer>)videoView didChangeVideoSize:(CGSize)size {
-    if (videoView == self.videoView) {
-        _videoSize = size;
-
-#if !TARGET_OS_OSX
-        [self setNeedsLayout];
-#else
-        self.needsLayout = YES;
-#endif
+        dispatch_async(dispatch_get_main_queue(), ^{
+            callback(eventData);
+        });
     }
 }
 
@@ -363,22 +316,19 @@ typedef NS_ENUM(NSInteger, RTCVideoViewObjectFit) {
 
 RCT_EXPORT_MODULE()
 
-#if !TARGET_OS_OSX
-- (UIView *)view {
-#else
-- (NSView *)view {
-#endif
+- (RCTView *)view {
     RTCVideoView *v = [[RTCVideoView alloc] init];
     v.module = [self.bridge moduleForName:@"WebRTCModule"];
-#if !TARGET_OS_OSX
+    v.viewManager = self;
     v.clipsToBounds = YES;
-#endif
     return v;
 }
 
 - (dispatch_queue_t)methodQueue {
     return dispatch_get_main_queue();
 }
+
+#pragma mark - View properties
 
 RCT_EXPORT_VIEW_PROPERTY(mirror, BOOL)
 
@@ -389,12 +339,14 @@ RCT_EXPORT_VIEW_PROPERTY(mirror, BOOL)
  * the CSS style {@code object-fit}.
  */
 RCT_CUSTOM_VIEW_PROPERTY(objectFit, NSString *, RTCVideoView) {
-    NSString *s = [RCTConvert NSString:json];
-    RTCVideoViewObjectFit e =
-        (s && [s isEqualToString:@"cover"]) ? RTCVideoViewObjectFitCover : RTCVideoViewObjectFitContain;
+    NSString *fitStr = json;
+    RTCVideoViewObjectFit fit =
+        (fitStr && [fitStr isEqualToString:@"cover"]) ? RTCVideoViewObjectFitCover : RTCVideoViewObjectFitContain;
 
-    view.objectFit = e;
+    view.objectFit = fit;
 }
+
+RCT_EXPORT_VIEW_PROPERTY(onDimensionsChange, RCTDirectEventBlock)
 
 RCT_CUSTOM_VIEW_PROPERTY(streamURL, NSString *, RTCVideoView) {
     if (!json) {
@@ -402,7 +354,7 @@ RCT_CUSTOM_VIEW_PROPERTY(streamURL, NSString *, RTCVideoView) {
         return;
     }
 
-    NSString *streamReactTag = (NSString *)json;
+    NSString *streamReactTag = json;
     WebRTCModule *module = view.module;
 
     dispatch_async(module.workerQueue, ^{
@@ -419,6 +371,39 @@ RCT_CUSTOM_VIEW_PROPERTY(streamURL, NSString *, RTCVideoView) {
     });
 }
 
+RCT_CUSTOM_VIEW_PROPERTY(iosPIP, NSDictionary *, RTCVideoView) {
+    if (@available(iOS 15.0, *)) {
+        [view setPIPOptions:json];
+    }
+}
+
+RCT_EXPORT_METHOD(startIOSPIP : (nonnull NSNumber *)reactTag) {
+    if (@available(iOS 15.0, *)) {
+        RCTUIManager *uiManager = [self.bridge moduleForClass:[RCTUIManager class]];
+        [uiManager addUIBlock:^(RCTUIManager *uiManager, NSDictionary<NSNumber *, UIView *> *viewRegistry) {
+            UIView *view = viewRegistry[reactTag];
+            if (!view || ![view isKindOfClass:[RTCVideoView class]]) {
+                RCTLogError(@"Cannot find RTCVideoView with tag #%@", reactTag);
+                return;
+            }
+            [(RTCVideoView *)view startPIP];
+        }];
+    }
+}
+
+RCT_EXPORT_METHOD(stopIOSPIP : (nonnull NSNumber *)reactTag) {
+    if (@available(iOS 15.0, *)) {
+        RCTUIManager *uiManager = [self.bridge moduleForClass:[RCTUIManager class]];
+        [uiManager addUIBlock:^(RCTUIManager *uiManager, NSDictionary<NSNumber *, UIView *> *viewRegistry) {
+            UIView *view = viewRegistry[reactTag];
+            if (!view || ![view isKindOfClass:[RTCVideoView class]]) {
+                RCTLogError(@"Cannot find RTCVideoView with tag #%@", reactTag);
+                return;
+            }
+            [(RTCVideoView *)view stopPIP];
+        }];
+    }
+}
 + (BOOL)requiresMainQueueSetup {
     return NO;
 }

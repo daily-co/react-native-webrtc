@@ -1,9 +1,9 @@
-import { EventTarget, Event, defineEventAttribute } from 'event-target-shim';
+import { EventTarget, Event, defineEventAttribute } from 'event-target-shim/index';
 import { NativeModules } from 'react-native';
 
 import { addListener } from './EventEmitter';
 import getDisplayMedia from './getDisplayMedia';
-import getUserMedia from './getUserMedia';
+import getUserMedia, { Constraints } from './getUserMedia';
 
 const { WebRTCModule } = NativeModules;
 
@@ -43,7 +43,7 @@ class MediaDevices extends EventTarget<MediaDevicesEventMap> {
      * @param {*} constraints
      * @returns {Promise}
      */
-    getUserMedia(constraints) {
+    getUserMedia(constraints: Constraints) {
         return getUserMedia(constraints);
     }
 

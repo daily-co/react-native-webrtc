@@ -14,6 +14,8 @@ Documentation/
 examples/
 apple/WebRTC.xcframework
 apple/WebRTC.dSYMs
+android/build/
 *.jar
 *.tgz
 *.zip
+.github
