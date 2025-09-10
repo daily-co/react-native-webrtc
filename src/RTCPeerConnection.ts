@@ -1,4 +1,4 @@
-import { EventTarget, Event, defineEventAttribute } from 'event-target-shim';
+import { EventTarget, Event, defineEventAttribute } from 'event-target-shim/index';
 import { NativeModules } from 'react-native';
 
 import { addListener, removeListener } from './EventEmitter';
@@ -18,6 +18,7 @@ import RTCRtpTransceiver from './RTCRtpTransceiver';
 import RTCSessionDescription, { RTCSessionDescriptionInit } from './RTCSessionDescription';
 import RTCTrackEvent from './RTCTrackEvent';
 import * as RTCUtil from './RTCUtil';
+import { RTCOfferOptions } from './RTCUtil';
 
 const log = new Logger('pc');
 const { WebRTCModule } = NativeModules;
@@ -132,7 +133,7 @@ export default class RTCPeerConnection extends EventTarget<RTCPeerConnectionEven
         log.debug(`${this._pcId} ctor`);
     }
 
-    async createOffer(options) {
+    async createOffer(options?:RTCOfferOptions) {
         log.debug(`${this._pcId} createOffer`);
 
         const {
@@ -332,18 +333,17 @@ export default class RTCPeerConnection extends EventTarget<RTCPeerConnectionEven
             return;
         }
 
-        if (
-            candidate.sdpMLineIndex === null ||
-            candidate.sdpMLineIndex === undefined ||
-            candidate.sdpMid === null ||
-            candidate.sdpMid === undefined
+        if ((candidate.sdpMLineIndex === null ||
+             candidate.sdpMLineIndex === undefined) &&
+            (candidate.sdpMid === null ||
+             candidate.sdpMid === undefined)
         ) {
-            throw new TypeError('`sdpMLineIndex` and `sdpMid` must not null or undefined');
+            throw new TypeError('`sdpMLineIndex` and `sdpMid` must not be both null or undefined');
         }
 
         const newSdp = await WebRTCModule.peerConnectionAddICECandidate(
             this._pcId,
-            candidate.toJSON ? candidate.toJSON() : candidate
+            RTCUtil.deepClone(candidate)
         );
 
         this.remoteDescription = new RTCSessionDescription(newSdp);
@@ -536,13 +536,11 @@ export default class RTCPeerConnection extends EventTarget<RTCPeerConnectionEven
     }
 
     getSenders(): RTCRtpSender[] {
-        // @ts-ignore
-        return this._transceivers.map(e => !e.transceiver.stopped && e.transceiver.sender).filter(Boolean);
+        return this._transceivers.filter(e => !e.transceiver.stopped).map(e => e.transceiver.sender);
     }
 
     getReceivers(): RTCRtpReceiver[] {
-        // @ts-ignore
-        return this._transceivers.map(e => !e.transceiver.stopped && e.transceiver.receiver).filter(Boolean);
+        return this._transceivers.filter(e => !e.transceiver.stopped).map(e => e.transceiver.receiver);
     }
 
     close(): void {
@@ -740,6 +738,10 @@ export default class RTCPeerConnection extends EventTarget<RTCPeerConnectionEven
      * instance such as id
      */
     createDataChannel(label: string, dataChannelDict?: RTCDataChannelInit): RTCDataChannel {
+        if (arguments.length === 0) {
+            throw new TypeError('1 argument required, but 0 present');
+        }
+
         if (dataChannelDict && 'id' in dataChannelDict) {
             const id = dataChannelDict.id;
 
@@ -748,7 +750,7 @@ export default class RTCPeerConnection extends EventTarget<RTCPeerConnectionEven
             }
         }
 
-        const channelInfo = WebRTCModule.createDataChannel(this._pcId, label, dataChannelDict);
+        const channelInfo = WebRTCModule.createDataChannel(this._pcId, String(label), dataChannelDict);
 
         if (channelInfo === null) {
             throw new TypeError('Failed to create new DataChannel');

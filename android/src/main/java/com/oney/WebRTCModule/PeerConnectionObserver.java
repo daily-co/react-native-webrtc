@@ -250,12 +250,13 @@ class PeerConnectionObserver implements PeerConnection.Observer {
             return;
         }
 
-        peerConnection.getStats(targetReceiver, rtcStatsReport -> promise.resolve(StringUtils.statsToJSON(rtcStatsReport)));
+        peerConnection.getStats(
+                targetReceiver, rtcStatsReport -> promise.resolve(StringUtils.statsToJSON(rtcStatsReport)));
     }
 
     public void senderGetStats(String senderId, Promise promise) {
         RtpSender targetSender = null;
-        for (RtpSender s : this.peerConnection.getSenders()) {
+        for (RtpSender s : peerConnection.getSenders()) {
             if (s.id().equals(senderId)) {
                 targetSender = s;
                 break;
@@ -268,7 +269,8 @@ class PeerConnectionObserver implements PeerConnection.Observer {
             return;
         }
 
-        peerConnection.getStats(targetSender, rtcStatsReport -> promise.resolve(StringUtils.statsToJSON(rtcStatsReport)));
+        peerConnection.getStats(
+                targetSender, rtcStatsReport -> promise.resolve(StringUtils.statsToJSON(rtcStatsReport)));
     }
 
     @Override

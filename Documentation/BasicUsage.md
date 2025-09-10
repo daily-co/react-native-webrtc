@@ -232,11 +232,9 @@ That will allow you to enable and disable video streams on demand while a call i
 
 ```javascript
 let sessionConstraints = {
-	mandatory: {
-		OfferToReceiveAudio: true,
-		OfferToReceiveVideo: true,
-		VoiceActivityDetection: true
-	}
+	offerToReceiveAudio: true,
+	offerToReceiveVideo: true,
+	voiceActivityDetection: true
 };
 ```
 
@@ -307,8 +305,13 @@ try {
 	// Taken from above, we don't want to flip if we don't have another camera.
 	if ( cameraCount < 2 ) { return; };
 
-	const videoTrack = await localMediaStream.getVideoTracks()[ 0 ];
-	videoTrack._switchCamera();
+	const videoTrack = localMediaStream.getVideoTracks()[0];
+	const constraints = { facingMode: isFrontCam ? 'user' : 'environment' };
+
+	videoTrack.applyConstraints(constraints);
+
+	// _switchCamera is deprecated as of 124.0.5
+	// videoTrack._switchCamera();
 
 	isFrontCam = !isFrontCam;
 } catch( err ) {
@@ -336,6 +339,30 @@ Don't forget, the user facing camera is usually mirrored.
 | objectFit | string | 'contain' | Can be `'contain'` or `'cover'` nothing more or less. | 
 | streamURL | string | 'streamURL' | Required to have an actual video stream rendering. |
 | zOrder | number | 0 | Similar to zIndex. |
+| onDimensionsChange | function | undefined | Callback fired when video dimensions change. Receives event with nativeEvent containing width and height. |
+
+## Handling Video Dimension Changes
+
+You can listen for changes in video dimensions using the onDimensionsChange callback.  
+This is useful for adapting your UI based on the video's aspect ratio or for analytics.
+
+```javascript
+import React, { useState } from 'react';
+
+const [videoDimensions, setVideoDimensions] = useState({ width: 0, height: 0 });
+
+<RTCView
+	mirror={true}
+	objectFit={'cover'}
+	streamURL={localMediaStream.toURL()}
+	zOrder={0}
+	onDimensionsChange={(event) => {
+		const { width, height } = event.nativeEvent;
+		setVideoDimensions({ width, height });
+		console.log(`Video dimensions changed: ${width}x${height}`);
+	}}
+/>
+```
 
 ## Controlling remote audio tracks
 

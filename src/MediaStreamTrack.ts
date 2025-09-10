@@ -1,9 +1,10 @@
-import { EventTarget, Event, defineEventAttribute } from 'event-target-shim';
+import { EventTarget, Event, defineEventAttribute } from 'event-target-shim/index';
 import { NativeModules } from 'react-native';
 
+import { MediaTrackConstraints } from './Constraints';
 import { addListener, removeListener } from './EventEmitter';
 import Logger from './Logger';
-import { deepClone } from './RTCUtil';
+import { deepClone, normalizeConstraints } from './RTCUtil';
 
 const log = new Logger('pc');
 const { WebRTCModule } = NativeModules;
@@ -22,6 +23,15 @@ export type MediaStreamTrackInfo = {
     readyState: MediaStreamTrackState;
 }
 
+export type MediaTrackSettings = {
+    width?: number;
+    height?: number;
+    frameRate?: number;
+    facingMode?: string;
+    deviceId?: string;
+    groupId?: string;
+}
+
 type MediaStreamTrackEventMap = {
     ended: Event<'ended'>;
     mute: Event<'mute'>;
@@ -29,9 +39,9 @@ type MediaStreamTrackEventMap = {
 }
 
 export default class MediaStreamTrack extends EventTarget<MediaStreamTrackEventMap> {
-    _constraints: object;
+    _constraints: MediaTrackConstraints;
     _enabled: boolean;
-    _settings: object;
+    _settings: MediaTrackSettings;
     _muted: boolean;
     _peerConnectionId: number;
     _readyState: MediaStreamTrackState;
@@ -97,6 +107,8 @@ export default class MediaStreamTrack extends EventTarget<MediaStreamTrackEventM
      *
      * This is how the reference application (AppRTCMobile) implements camera
      * switching.
+     *
+     * @deprecated Use applyConstraints instead.
      */
     _switchCamera(): void {
         if (this.remote) {
@@ -126,7 +138,7 @@ export default class MediaStreamTrack extends EventTarget<MediaStreamTrackEventM
         return WebRTCModule.mediaStreamTrackGetCameraFacingMode(this.id);
     }
 
-    _setVideoEffect(name:string) {
+    _setVideoEffects(names: string[]) {
         if (this.remote) {
             throw new Error('Not implemented for remote tracks');
         }
@@ -135,7 +147,11 @@ export default class MediaStreamTrack extends EventTarget<MediaStreamTrackEventM
             throw new Error('Only implemented for video tracks');
         }
 
-        WebRTCModule.mediaStreamTrackSetVideoEffect(this.id, name);
+        WebRTCModule.mediaStreamTrackSetVideoEffects(this.id, names);
+    }
+
+    _setVideoEffect(name: string) {
+        this._setVideoEffects([ name ]);
     }
 
     /**
@@ -166,8 +182,25 @@ export default class MediaStreamTrack extends EventTarget<MediaStreamTrackEventM
         WebRTCModule.mediaStreamTrackSetVolume(this.remote ? this._peerConnectionId : -1, this.id, volume);
     }
 
-    applyConstraints(): never {
-        throw new Error('Not implemented.');
+    /**
+     * Applies a new set of constraints to the track.
+     *
+     * @param constraints An object listing the constraints
+     * to apply to the track's constrainable properties; any existing
+     * constraints are replaced with the new values specified, and any
+     * constrainable properties not included are restored to their default
+     * constraints. If this parameter is omitted, all currently set custom
+     * constraints are cleared.
+     */
+    async applyConstraints(constraints?: MediaTrackConstraints): Promise<void> {
+        if (this.kind !== 'video') {
+            throw new Error('Only implemented for video tracks');
+        }
+
+        const normalized = normalizeConstraints({ video: constraints ?? true });
+
+        this._settings = await WebRTCModule.mediaStreamTrackApplyConstraints(this.id, normalized.video);
+        this._constraints = constraints ?? {};
     }
 
     clone(): never {
@@ -182,7 +215,7 @@ export default class MediaStreamTrack extends EventTarget<MediaStreamTrackEventM
         return deepClone(this._constraints);
     }
 
-    getSettings() {
+    getSettings(): MediaTrackSettings {
         return deepClone(this._settings);
     }
 
