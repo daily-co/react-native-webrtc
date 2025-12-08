@@ -1,5 +1,6 @@
 package com.oney.WebRTCModule;
 
+import android.media.MediaRecorder;
 import android.util.Log;
 import android.util.Pair;
 import android.util.SparseArray;
@@ -91,7 +92,16 @@ public class WebRTCModule extends ReactContextBaseJavaModule {
         }
 
         if (adm == null) {
-            adm = JavaAudioDeviceModule.builder(reactContext).setEnableVolumeLogger(false).createAudioDeviceModule();
+            Log.i(TAG, "Creating a custom audio device module!");
+            adm = JavaAudioDeviceModule
+                    .builder(reactContext)
+                    .setEnableVolumeLogger(false)
+                    // Disabling hardware specific settings
+                    .setUseHardwareAcousticEchoCanceler(false)
+                    .setUseHardwareNoiseSuppressor(false)
+                    // bypasses phone mode speech filtering
+                    .setAudioSource(MediaRecorder.AudioSource.VOICE_RECOGNITION)
+                    .createAudioDeviceModule();
         }
 
         Log.d(TAG, "Using video encoder factory: " + encoderFactory.getClass().getCanonicalName());

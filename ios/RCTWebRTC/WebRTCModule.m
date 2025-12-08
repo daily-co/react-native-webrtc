@@ -69,6 +69,8 @@
         RCTLogInfo(@"Using video encoder factory: %@", NSStringFromClass([encoderFactory class]));
         RCTLogInfo(@"Using video decoder factory: %@", NSStringFromClass([decoderFactory class]));
 
+        // TODO: We need to change this API and add an extra option that allows disabling voice processing.
+        // Right now this is hardcoded in our custom build.
         _peerConnectionFactory = [[RTCPeerConnectionFactory alloc] initWithEncoderFactory:encoderFactory
                                                                            decoderFactory:decoderFactory
                                                                               audioDevice:audioDevice];
