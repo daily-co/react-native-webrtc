@@ -1,5 +1,6 @@
 package com.oney.WebRTCModule;
 
+import android.media.AudioManager;
 import android.media.MediaRecorder;
 import android.util.Log;
 import android.util.Pair;
@@ -93,14 +94,26 @@ public class WebRTCModule extends ReactContextBaseJavaModule {
 
         if (adm == null) {
             Log.i(TAG, "Creating a custom audio device module!");
+            // TODO: need to check the audio manager instead of always using VOICE_RECOGNITION
+            // But it looks like it is doing the tricky for now.
+            // https://developer.android.com/media/platform/mediarecorder#audiocapture
+            // Note: Most of the audio sources (including DEFAULT) apply processing to the audio signal.
+            // To record raw audio select UNPROCESSED. Some devices do not support unprocessed input.
+            // Call AudioManager.getProperty(android.media.AudioManager.PROPERTY_SUPPORT_AUDIO_SOURCE_UNPROCESSED) first to verify it's available.
+            // If it is not, try using VOICE_RECOGNITION instead, which does not employ AGC or noise suppression.
+            int audioSource = MediaRecorder.AudioSource.VOICE_RECOGNITION;
             adm = JavaAudioDeviceModule
                     .builder(reactContext)
                     .setEnableVolumeLogger(false)
                     // Disabling hardware specific settings
                     .setUseHardwareAcousticEchoCanceler(false)
                     .setUseHardwareNoiseSuppressor(false)
+                    // Depending on the value you choose, Android may enable or disable:
+                    // Noise suppression
+                    // Acoustic echo cancellation
+                    // Automatic gain control (AGC)
                     // bypasses phone mode speech filtering
-                    .setAudioSource(MediaRecorder.AudioSource.VOICE_RECOGNITION)
+                    .setAudioSource(audioSource)
                     .createAudioDeviceModule();
         }
 
