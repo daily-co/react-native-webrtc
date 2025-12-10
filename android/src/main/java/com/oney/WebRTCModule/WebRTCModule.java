@@ -94,25 +94,39 @@ public class WebRTCModule extends ReactContextBaseJavaModule {
 
         if (adm == null) {
             Log.i(TAG, "Creating a custom audio device module!");
-            // TODO: need to check the audio manager instead of always using VOICE_RECOGNITION
-            // But it looks like it is doing the tricky for now.
-            // https://developer.android.com/media/platform/mediarecorder#audiocapture
-            // Note: Most of the audio sources (including DEFAULT) apply processing to the audio signal.
-            // To record raw audio select UNPROCESSED. Some devices do not support unprocessed input.
-            // Call AudioManager.getProperty(android.media.AudioManager.PROPERTY_SUPPORT_AUDIO_SOURCE_UNPROCESSED) first to verify it's available.
-            // If it is not, try using VOICE_RECOGNITION instead, which does not employ AGC or noise suppression.
+            /*
+             * TODO (Filipi):
+             * Instead of always forcing VOICE_RECOGNITION, detect the best audio source
+             * by checking device capabilities through AudioManager.
+             *
+             * Background:
+             * - Many audio sources (including DEFAULT) apply signal processing such as
+             *   noise suppression, echo cancellation, and automatic gain control (AGC).
+             * - If you need raw, unprocessed audio, use MediaRecorder.AudioSource.UNPROCESSED.
+             *   However, not all devices support this source.
+             *
+             * VOICE_RECOGNITION is chosen here for now as a safe fallback because it avoids
+             * most unwanted processing while being widely supported.
+             *
+             * Recommended flow:
+             * 1. Query device support for unprocessed audio:
+             *      AudioManager.getProperty(PROPERTY_SUPPORT_AUDIO_SOURCE_UNPROCESSED)
+             * 2. If supported, use UNPROCESSED.
+             * 3. Otherwise, fall back to VOICE_RECOGNITION, which provides minimal
+             *    signal processing (no AGC, no noise suppression).
+             *
+             * Reference:
+             * https://developer.android.com/media/platform/mediarecorder#audiocapture
+             */
             int audioSource = MediaRecorder.AudioSource.VOICE_RECOGNITION;
             adm = JavaAudioDeviceModule
                     .builder(reactContext)
                     .setEnableVolumeLogger(false)
-                    // Disabling hardware specific settings
+                    // Disable hardware AEC/NS so WebRTC can use its own implementations,
+                    // or so that audio remains as close to raw as possible depending on your target.
                     .setUseHardwareAcousticEchoCanceler(false)
                     .setUseHardwareNoiseSuppressor(false)
-                    // Depending on the value you choose, Android may enable or disable:
-                    // Noise suppression
-                    // Acoustic echo cancellation
-                    // Automatic gain control (AGC)
-                    // bypasses phone mode speech filtering
+                    // Selecting an audio source which does not apply signal processing.
                     .setAudioSource(audioSource)
                     .createAudioDeviceModule();
         }
