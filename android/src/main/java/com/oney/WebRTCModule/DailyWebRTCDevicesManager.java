@@ -125,10 +125,7 @@ public class DailyWebRTCDevicesManager {
     private void fillAudioDevices(WritableArray enumerateDevicesArray) {
         AudioDeviceInfo[] audioOutputDevices = this.audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS);
 
-        boolean isWiredHeadsetPlugged = Arrays.stream(audioOutputDevices).anyMatch(
-                device -> device.getType() == AudioDeviceInfo.TYPE_WIRED_HEADSET ||
-                        device.getType() == AudioDeviceInfo.TYPE_WIRED_HEADPHONES
-        );
+        boolean isWiredHeadsetPlugged = Arrays.stream(audioOutputDevices).anyMatch(DailyAudioDeviceUtils::isWiredHeadsetLikeDevice);
 
         WritableMap params = isWiredHeadsetPlugged ?
                 this.createWritableMap(AudioDeviceType.WIRED_OR_EARPIECE.toString(), "Wired headset", DeviceKind.AUDIO.getKind()) :
