@@ -27,6 +27,8 @@ import org.webrtc.*;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -78,7 +80,14 @@ class GetUserMediaImpl {
                     mediaProjectionPermissionResultData = data;
 
                     ThreadUtils.runOnExecutor(() -> {
-                        MediaProjectionService.launch(activity);
+                        CompletableFuture<Void> fut = MediaProjectionService.launch(activity);
+                        try {
+                            fut.get(5, TimeUnit.SECONDS);
+                        } catch (Exception e) {
+                            displayMediaPromise.reject("DOMException", "AbortError");
+                            displayMediaPromise = null;
+                            return;
+                        }
                         createScreenStream();
                     });
                 }
