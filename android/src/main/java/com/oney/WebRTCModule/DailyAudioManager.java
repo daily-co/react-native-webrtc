@@ -238,10 +238,7 @@ public class DailyAudioManager implements AudioManager.OnAudioFocusChangeListene
             return AudioDeviceType.BLUETOOTH;
         }
 
-        boolean isWiredHeadsetPlugged = Arrays.stream(audioOutputDevices).anyMatch(
-                device -> device.getType() == AudioDeviceInfo.TYPE_WIRED_HEADSET ||
-                        device.getType() == AudioDeviceInfo.TYPE_WIRED_HEADPHONES
-        );
+        boolean isWiredHeadsetPlugged = Arrays.stream(audioOutputDevices).anyMatch(DailyAudioDeviceUtils::isWiredHeadsetLikeDevice);
         if (isWiredHeadsetPlugged) {
             return AudioDeviceType.WIRED_OR_EARPIECE;
         }
