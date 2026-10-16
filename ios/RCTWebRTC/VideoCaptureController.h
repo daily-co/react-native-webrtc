@@ -17,6 +17,11 @@
 - (void)applyConstraints:(NSDictionary *)constraints error:(NSError **)outError;
 -(NSString *)switchCamera;
 -(NSString *)facingMode;
+- (BOOL)isRunning;
+- (BOOL)isTorchAvailable;
+- (BOOL)setTorchEnabled:(BOOL)enabled error:(NSError **)outError;
+- (nullable NSDictionary *)zoomInfo;
+- (BOOL)setZoomFactor:(double)factor error:(NSError **)outError;
 
 @end
 #endif

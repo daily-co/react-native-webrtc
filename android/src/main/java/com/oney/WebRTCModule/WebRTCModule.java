@@ -889,6 +889,46 @@ public class WebRTCModule extends ReactContextBaseJavaModule {
         });
     }
 
+    /**
+     * Torch and zoom are unsupported on Android.
+     *
+     * {@code org.jitsi:webrtc:124.+} publishes {@code org.webrtc.CameraVideoCapturer} with
+     * {@code switchCamera}, {@code addMediaRecorderToCamera}, and
+     * {@code removeMediaRecorderFromCamera} only. It does not declare torch or zoom.
+     * {@code org.webrtc.Camera2Session} declares {@code create} and {@code stop} only.
+     * {@code org.jitsi:webrtc:124.0.0} classes.jar contains no torch, FLASH_MODE, or zoom members.
+     */
+    private static final String CAMERA_CONTROL_UNSUPPORTED =
+            "org.jitsi:webrtc:124.+ CameraVideoCapturer does not declare torch or zoom";
+
+    @ReactMethod
+    public void isCameraTorchAvailable(Promise promise) {
+        promise.resolve(false);
+    }
+
+    @ReactMethod
+    public void setCameraTorch(boolean enabled, Promise promise) {
+        if (!enabled) {
+            promise.resolve(null);
+            return;
+        }
+        promise.reject(
+                "torch_unavailable",
+                "org.jitsi:webrtc:124.+ does not declare torch on CameraVideoCapturer. " + CAMERA_CONTROL_UNSUPPORTED);
+    }
+
+    @ReactMethod
+    public void getCameraZoom(Promise promise) {
+        promise.resolve(null);
+    }
+
+    @ReactMethod
+    public void setCameraZoom(double ratio, Promise promise) {
+        promise.reject(
+                "zoom_unavailable",
+                "org.jitsi:webrtc:124.+ does not declare zoom on CameraVideoCapturer. " + CAMERA_CONTROL_UNSUPPORTED);
+    }
+
     private static final String SWITCH_CAMERA_ERROR = "SWITCH_CAMERA_ERROR";
 
     @ReactMethod

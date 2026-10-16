@@ -521,6 +521,63 @@ RCT_EXPORT_METHOD(mediaStreamTrackSetVideoEffects : (nonnull NSString *)trackID 
     capturer.delegate = self.videoEffectProcessor;
 }
 
+#pragma mark - Camera torch and zoom
+
+- (VideoCaptureController *)activeVideoCaptureController {
+#if TARGET_OS_TV
+    return nil;
+#else
+    for (RTCMediaStreamTrack *track in self.localTracks.allValues) {
+        if (![track.kind isEqualToString:@"video"]) {
+            continue;
+        }
+        id controller = track.captureController;
+        if ([controller isKindOfClass:[VideoCaptureController class]] &&
+            [(VideoCaptureController *)controller isRunning]) {
+            return (VideoCaptureController *)controller;
+        }
+    }
+    return nil;
+#endif
+}
+
+RCT_EXPORT_METHOD(isCameraTorchAvailable : (RCTPromiseResolveBlock)resolve rejecter : (RCTPromiseRejectBlock)reject) {
+    VideoCaptureController *controller = [self activeVideoCaptureController];
+    resolve(@([controller isTorchAvailable]));
+}
+
+RCT_EXPORT_METHOD(setCameraTorch : (BOOL)enabled resolver : (RCTPromiseResolveBlock)resolve rejecter : (RCTPromiseRejectBlock)reject) {
+    VideoCaptureController *controller = [self activeVideoCaptureController];
+    NSError *error = nil;
+    if (controller) {
+        if (![controller setTorchEnabled:enabled error:&error]) {
+            reject(@"torch_unavailable", error.localizedDescription, error);
+            return;
+        }
+    } else if (enabled) {
+        reject(@"torch_unavailable", @"Camera capture is not running", nil);
+        return;
+    }
+    resolve(nil);
+}
+
+RCT_EXPORT_METHOD(getCameraZoom : (RCTPromiseResolveBlock)resolve rejecter : (RCTPromiseRejectBlock)reject) {
+    VideoCaptureController *controller = [self activeVideoCaptureController];
+    resolve([controller zoomInfo]);
+}
+
+RCT_EXPORT_METHOD(setCameraZoom : (double)ratio resolver : (RCTPromiseResolveBlock)resolve rejecter : (RCTPromiseRejectBlock)reject) {
+    VideoCaptureController *controller = [self activeVideoCaptureController];
+    NSError *error = nil;
+    if (!controller || ![controller setZoomFactor:ratio error:&error]) {
+        reject(@"zoom_out_of_range",
+               error.localizedDescription ?: @"Camera capture is not running",
+               error);
+        return;
+    }
+    resolve([controller zoomInfo]);
+}
+
 #pragma mark - Helpers
 
 - (RTCMediaStreamTrack *)trackForId:(nonnull NSString *)trackId pcId:(nonnull NSNumber *)pcId {
