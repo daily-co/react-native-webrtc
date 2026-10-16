@@ -101,6 +101,8 @@
     if (!self.running)
         return;
 
+    [self resetTorchAndZoom];
+
     RCTLog(@"[VideoCaptureController] Capture will stop");
     // Stopping the capture happens on another thread. Wait for it.
     dispatch_semaphore_t semaphore = dispatch_semaphore_create(0);
@@ -118,6 +120,9 @@
 }
 
 - (void)applyConstraints:(NSDictionary *)constraints error:(NSError **)outError {
+    // Turn the torch off and reset zoom before releasing the current device.
+    // setCamera() restarts capture through this path rather than switchCamera.
+    [self resetTorchAndZoom];
     // Clear device to prepare for starting camera with new constraints.
     self.device = nil;
 
@@ -182,19 +187,132 @@
 
     if (self.running && hasChanged) {
         [self startCapture];
+        [self resetTorchAndZoom];
     }
 }
 
--(NSString *)switchCamera {
+- (NSString *)switchCamera {
+    [self resetTorchAndZoom];
     self.usingFrontCamera = !self.usingFrontCamera;
     self.deviceId = nil;
     self.device = nil;
 
     [self startCapture];
+    [self resetTorchAndZoom];
     return [self facingMode];
 }
 
--(NSString *)facingMode {
+- (BOOL)isRunning {
+    return self.running && self.device != nil;
+}
+
+- (BOOL)isTorchAvailable {
+    if (![self isRunning]) {
+        return NO;
+    }
+    return self.device.hasTorch && self.device.isTorchAvailable;
+}
+
+- (BOOL)setTorchEnabled:(BOOL)enabled error:(NSError **)outError {
+    if (![self isRunning]) {
+        if (!enabled) {
+            return YES;
+        }
+        if (outError) {
+            *outError = [NSError errorWithDomain:@"VideoCaptureController"
+                                            code:1
+                                        userInfo:@{NSLocalizedDescriptionKey : @"Camera capture is not running"}];
+        }
+        return NO;
+    }
+
+    if (enabled && ![self isTorchAvailable]) {
+        if (outError) {
+            *outError = [NSError
+                errorWithDomain:@"VideoCaptureController"
+                           code:2
+                       userInfo:@{NSLocalizedDescriptionKey : @"The active camera does not have an available torch"}];
+        }
+        return NO;
+    }
+
+    NSError *lockError = nil;
+    if (![self.device lockForConfiguration:&lockError]) {
+        if (outError) {
+            *outError = lockError;
+        }
+        return NO;
+    }
+
+    AVCaptureTorchMode mode = enabled ? AVCaptureTorchModeOn : AVCaptureTorchModeOff;
+    if ([self.device isTorchModeSupported:mode]) {
+        self.device.torchMode = mode;
+    }
+    [self.device unlockForConfiguration];
+    return YES;
+}
+
+- (nullable NSDictionary *)zoomInfo {
+    if (![self isRunning]) {
+        return nil;
+    }
+
+    double minZoom = 1.0;
+    double maxZoom = self.device.activeFormat.videoMaxZoomFactor;
+    if (@available(iOS 11.0, *)) {
+        minZoom = self.device.minAvailableVideoZoomFactor;
+        maxZoom = self.device.maxAvailableVideoZoomFactor;
+    }
+
+    return @{
+        @"ratio" : @(self.device.videoZoomFactor),
+        @"min" : @(minZoom),
+        @"max" : @(maxZoom),
+    };
+}
+
+- (BOOL)setZoomFactor:(double)factor error:(NSError **)outError {
+    NSDictionary *info = [self zoomInfo];
+    if (!info) {
+        if (outError) {
+            *outError = [NSError errorWithDomain:@"VideoCaptureController"
+                                            code:3
+                                        userInfo:@{NSLocalizedDescriptionKey : @"Camera capture is not running"}];
+        }
+        return NO;
+    }
+
+    double minZoom = [info[@"min"] doubleValue];
+    double maxZoom = [info[@"max"] doubleValue];
+    if (factor < minZoom || factor > maxZoom) {
+        if (outError) {
+            *outError = [NSError
+                errorWithDomain:@"VideoCaptureController"
+                           code:4
+                       userInfo:@{
+                           NSLocalizedDescriptionKey :
+                               [NSString stringWithFormat:@"Zoom ratio %g is outside the supported range %g to %g",
+                                                          factor,
+                                                          minZoom,
+                                                          maxZoom]
+                       }];
+        }
+        return NO;
+    }
+
+    NSError *lockError = nil;
+    if (![self.device lockForConfiguration:&lockError]) {
+        if (outError) {
+            *outError = lockError;
+        }
+        return NO;
+    }
+    self.device.videoZoomFactor = factor;
+    [self.device unlockForConfiguration];
+    return YES;
+}
+
+- (NSString *)facingMode {
     return self.usingFrontCamera ? @"user" : @"environment";
 }
 
@@ -253,6 +371,38 @@
 }
 
 #pragma mark Private
+
+- (void)resetTorchAndZoom {
+    if (!self.device) {
+        return;
+    }
+
+    NSError *lockError = nil;
+    if (![self.device lockForConfiguration:&lockError]) {
+        RCTLog(@"[VideoCaptureController] Could not reset torch and zoom: %@", lockError);
+        return;
+    }
+
+    if (self.device.hasTorch && [self.device isTorchModeSupported:AVCaptureTorchModeOff]) {
+        self.device.torchMode = AVCaptureTorchModeOff;
+    }
+
+    double minZoom = 1.0;
+    double maxZoom = self.device.activeFormat.videoMaxZoomFactor;
+    if (@available(iOS 11.0, *)) {
+        minZoom = self.device.minAvailableVideoZoomFactor;
+        maxZoom = self.device.maxAvailableVideoZoomFactor;
+    }
+    double target = 1.0;
+    if (target < minZoom) {
+        target = minZoom;
+    }
+    if (target > maxZoom) {
+        target = maxZoom;
+    }
+    self.device.videoZoomFactor = target;
+    [self.device unlockForConfiguration];
+}
 
 - (void)setDevice:(AVCaptureDevice *)device {
     if (_device) {
