@@ -912,8 +912,7 @@ public class WebRTCModule extends ReactContextBaseJavaModule {
             promise.resolve(null);
             return;
         }
-        promise.reject(
-                "torch_unavailable",
+        promise.reject("torch_unavailable",
                 "org.jitsi:webrtc:124.+ does not declare torch on CameraVideoCapturer. " + CAMERA_CONTROL_UNSUPPORTED);
     }
 
@@ -924,9 +923,9 @@ public class WebRTCModule extends ReactContextBaseJavaModule {
 
     @ReactMethod
     public void setCameraZoom(double ratio, Promise promise) {
-        promise.reject(
-                "zoom_unavailable",
-                "org.jitsi:webrtc:124.+ does not declare zoom on CameraVideoCapturer. " + CAMERA_CONTROL_UNSUPPORTED);
+        promise.reject("zoom_unavailable",
+                "org.jitsi:webrtc:124.+ does not declare zoom on CameraVideoCapturer. " + CAMERA_CONTROL_UNSUPPORTED
+                        + " Requested ratio: " + ratio);
     }
 
     private static final String SWITCH_CAMERA_ERROR = "SWITCH_CAMERA_ERROR";

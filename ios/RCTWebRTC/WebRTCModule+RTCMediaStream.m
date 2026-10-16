@@ -546,7 +546,8 @@ RCT_EXPORT_METHOD(isCameraTorchAvailable : (RCTPromiseResolveBlock)resolve rejec
     resolve(@([controller isTorchAvailable]));
 }
 
-RCT_EXPORT_METHOD(setCameraTorch : (BOOL)enabled resolver : (RCTPromiseResolveBlock)resolve rejecter : (RCTPromiseRejectBlock)reject) {
+RCT_EXPORT_METHOD(setCameraTorch : (BOOL)enabled resolver : (RCTPromiseResolveBlock)
+                      resolve rejecter : (RCTPromiseRejectBlock)reject) {
     VideoCaptureController *controller = [self activeVideoCaptureController];
     NSError *error = nil;
     if (controller) {
@@ -566,13 +567,12 @@ RCT_EXPORT_METHOD(getCameraZoom : (RCTPromiseResolveBlock)resolve rejecter : (RC
     resolve([controller zoomInfo]);
 }
 
-RCT_EXPORT_METHOD(setCameraZoom : (double)ratio resolver : (RCTPromiseResolveBlock)resolve rejecter : (RCTPromiseRejectBlock)reject) {
+RCT_EXPORT_METHOD(setCameraZoom : (double)ratio resolver : (RCTPromiseResolveBlock)
+                      resolve rejecter : (RCTPromiseRejectBlock)reject) {
     VideoCaptureController *controller = [self activeVideoCaptureController];
     NSError *error = nil;
     if (!controller || ![controller setZoomFactor:ratio error:&error]) {
-        reject(@"zoom_out_of_range",
-               error.localizedDescription ?: @"Camera capture is not running",
-               error);
+        reject(@"zoom_out_of_range", error.localizedDescription ?: @"Camera capture is not running", error);
         return;
     }
     resolve([controller zoomInfo]);

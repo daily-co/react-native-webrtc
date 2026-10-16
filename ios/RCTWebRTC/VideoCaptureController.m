@@ -191,7 +191,7 @@
     }
 }
 
--(NSString *)switchCamera {
+- (NSString *)switchCamera {
     [self resetTorchAndZoom];
     self.usingFrontCamera = !self.usingFrontCamera;
     self.deviceId = nil;
@@ -228,12 +228,10 @@
 
     if (enabled && ![self isTorchAvailable]) {
         if (outError) {
-            *outError = [NSError errorWithDomain:@"VideoCaptureController"
-                                            code:2
-                                        userInfo:@{
-                                            NSLocalizedDescriptionKey :
-                                                @"The active camera does not have an available torch"
-                                        }];
+            *outError = [NSError
+                errorWithDomain:@"VideoCaptureController"
+                           code:2
+                       userInfo:@{NSLocalizedDescriptionKey : @"The active camera does not have an available torch"}];
         }
         return NO;
     }
@@ -292,11 +290,11 @@
                 errorWithDomain:@"VideoCaptureController"
                            code:4
                        userInfo:@{
-                           NSLocalizedDescriptionKey : [NSString
-                               stringWithFormat:@"Zoom ratio %g is outside the supported range %g to %g",
-                                                factor,
-                                                minZoom,
-                                                maxZoom]
+                           NSLocalizedDescriptionKey :
+                               [NSString stringWithFormat:@"Zoom ratio %g is outside the supported range %g to %g",
+                                                          factor,
+                                                          minZoom,
+                                                          maxZoom]
                        }];
         }
         return NO;
@@ -314,7 +312,7 @@
     return YES;
 }
 
--(NSString *)facingMode {
+- (NSString *)facingMode {
     return self.usingFrontCamera ? @"user" : @"environment";
 }
 

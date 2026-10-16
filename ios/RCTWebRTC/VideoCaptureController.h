@@ -15,8 +15,8 @@
 - (void)startCapture;
 - (void)stopCapture;
 - (void)applyConstraints:(NSDictionary *)constraints error:(NSError **)outError;
--(NSString *)switchCamera;
--(NSString *)facingMode;
+- (NSString *)switchCamera;
+- (NSString *)facingMode;
 - (BOOL)isRunning;
 - (BOOL)isTorchAvailable;
 - (BOOL)setTorchEnabled:(BOOL)enabled error:(NSError **)outError;
