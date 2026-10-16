@@ -120,6 +120,9 @@
 }
 
 - (void)applyConstraints:(NSDictionary *)constraints error:(NSError **)outError {
+    // Turn the torch off and reset zoom before releasing the current device.
+    // setCamera() restarts capture through this path rather than switchCamera.
+    [self resetTorchAndZoom];
     // Clear device to prepare for starting camera with new constraints.
     self.device = nil;
 
@@ -184,6 +187,7 @@
 
     if (self.running && hasChanged) {
         [self startCapture];
+        [self resetTorchAndZoom];
     }
 }
 
