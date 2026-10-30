@@ -14,5 +14,9 @@ mv "$APP"/.local/daily-co-react-native-webrtc-*.tgz "$APP/.local/react-native-we
 
 cd "$APP"
 rm -rf node_modules/@daily-co/react-native-webrtc
-npm install
-node -p "'installed @daily-co/react-native-webrtc ' + require('@daily-co/react-native-webrtc/package.json').version"
+# Name the tarball: a plain `npm install` keeps the version and integrity pinned in package-lock.json.
+npm install "file:.local/react-native-webrtc.tgz"
+INSTALLED="$(node -p "require('@daily-co/react-native-webrtc/package.json').version")"
+EXPECTED="$(node -p "require('$ROOT/package.json').version")"
+[ "$INSTALLED" = "$EXPECTED" ] || { echo "installed $INSTALLED, expected $EXPECTED"; exit 1; }
+echo "installed @daily-co/react-native-webrtc $INSTALLED"

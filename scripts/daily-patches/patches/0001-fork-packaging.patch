@@ -58,7 +58,7 @@ index 6ec570c..8b322f8 100644
  examples/
  apple/WebRTC.xcframework
 diff --git a/README.md b/README.md
-index 9ef9084..a5110c2 100644
+index a9d2293..a5110c2 100644
 --- a/README.md
 +++ b/README.md
 @@ -1,81 +1,4 @@
@@ -105,7 +105,7 @@ index 9ef9084..a5110c2 100644
 -
 -## WebRTC Revision
 -
--* Currently used revision: [M124](https://github.com/jitsi/webrtc/tree/M124)
+-* Currently used revision: [M155](https://github.com/jitsi/webrtc/tree/M155)
 -* Supported architectures
 -  * Android: armeabi-v7a, arm64-v8a, x86, x86_64
 -  * iOS: arm64, x86_64
@@ -146,15 +146,15 @@ index 9ef9084..a5110c2 100644
 -Looking for extra functionality coverage?  
 -The [react-native-webrtc](https://github.com/react-native-webrtc) organization provides a number of packages which are more than useful when developing Real Time Communication applications.  
 diff --git a/package.json b/package.json
-index 0605a6d..67c4cfb 100644
+index eb69faf..fafd26d 100644
 --- a/package.json
 +++ b/package.json
 @@ -1,13 +1,14 @@
  {
 -  "name": "react-native-webrtc",
--  "version": "124.0.6",
+-  "version": "155.0.1",
 +  "name": "@daily-co/react-native-webrtc",
-+  "version": "124.0.6-daily.2",
++  "version": "155.0.1-daily.1",
    "repository": {
      "type": "git",
 -    "url": "git+https://github.com/react-native-webrtc/react-native-webrtc.git"
@@ -169,7 +169,7 @@ index 0605a6d..67c4cfb 100644
    "keywords": [
      "react-component",
      "react-native",
-@@ -28,13 +29,15 @@
+@@ -27,13 +28,15 @@
      "react-native": ">=0.60.0"
    },
    "scripts": {
@@ -177,7 +177,7 @@ index 0605a6d..67c4cfb 100644
 +    "prepublishOnly": "npm run tag",
      "lint": "eslint --max-warnings 0 . && tsc --noEmit",
      "lintfix": "eslint --max-warnings 0 --fix . && tsc --noEmit",
-     "prepare": "husky install && bob build",
+     "prepare": "husky install && bob build && node tools/postbuild.mjs",
      "format": "tools/format.sh"
    },
    "bugs": {
@@ -187,7 +187,7 @@ index 0605a6d..67c4cfb 100644
    "devDependencies": {
      "@types/debug": "4.1.7",
 diff --git a/react-native-webrtc.podspec b/react-native-webrtc.podspec
-index 51af1f0..0f72293 100644
+index 059f97d..cb6841c 100644
 --- a/react-native-webrtc.podspec
 +++ b/react-native-webrtc.podspec
 @@ -3,7 +3,7 @@ require 'json'

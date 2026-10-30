@@ -1,0 +1,26 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: filipi87 <filipi87@gmail.com>
+Date: Fri, 30 Oct 2026 12:30:55 -0700
+Subject: [PATCH] android-screenshare-fgs: enable MediaProjectionService by
+ default
+
+Upstream now waits for the service to reach the foreground before creating
+the screen stream (78904d2), so only enabling the service stays in this
+patch: upstream still defaults enableMediaProjectionService to false.
+---
+ android/src/main/java/com/oney/WebRTCModule/WebRTCModule.java | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/android/src/main/java/com/oney/WebRTCModule/WebRTCModule.java b/android/src/main/java/com/oney/WebRTCModule/WebRTCModule.java
+index d4aaed3..b7e7560 100644
+--- a/android/src/main/java/com/oney/WebRTCModule/WebRTCModule.java
++++ b/android/src/main/java/com/oney/WebRTCModule/WebRTCModule.java
+@@ -121,6 +121,8 @@ public class WebRTCModule extends ReactContextBaseJavaModule {
+ 
+         getUserMediaImpl = new GetUserMediaImpl(this, reactContext);
+         dailyWebRTCDevicesManager = new DailyWebRTCDevicesManager(this, reactContext);
++        // Enabling to react-native-webrtc automatically start and stop media projection service
++        WebRTCModuleOptions.getInstance().enableMediaProjectionService = true;
+     }
+ 
+     @NonNull

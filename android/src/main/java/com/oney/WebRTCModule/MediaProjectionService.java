@@ -25,14 +25,16 @@ public class MediaProjectionService extends Service {
 
     static final int NOTIFICATION_ID = new Random().nextInt(99999) + 10000;
 
-    static volatile CompletableFuture<Void> startFuture;
+    private static volatile CompletableFuture<Void> startFuture;
 
     public static CompletableFuture<Void> launch(Context context) {
         if (!WebRTCModuleOptions.getInstance().enableMediaProjectionService) {
             return CompletableFuture.completedFuture(null);
         }
 
-        startFuture = new CompletableFuture<>();
+        CompletableFuture<Void> future = new CompletableFuture<>();
+
+        startFuture = future;
 
         MediaProjectionNotification.createNotificationChannel(context);
         Intent intent = new Intent(context, MediaProjectionService.class);
@@ -48,18 +50,21 @@ public class MediaProjectionService extends Service {
             // Avoid crashing due to ForegroundServiceStartNotAllowedException (API level 31).
             // See: https://developer.android.com/guide/components/foreground-services#background-start-restrictions
             Log.w(TAG, "Media projection service not started", e);
-            startFuture.completeExceptionally(e);
-            return startFuture;
+            startFuture = null;
+            future.completeExceptionally(e);
+
+            return future;
         }
 
         if (componentName == null) {
             Log.w(TAG, "Media projection service not started");
-            startFuture.completeExceptionally(new RuntimeException("Media projection service not started"));
+            startFuture = null;
+            future.completeExceptionally(new RuntimeException("Media projection service not started"));
         } else {
             Log.i(TAG, "Media projection service started");
         }
 
-        return startFuture;
+        return future;
     }
 
     public static void abort(Context context) {
@@ -86,8 +91,11 @@ public class MediaProjectionService extends Service {
             startForeground(NOTIFICATION_ID, notification);
         }
 
-        if (startFuture != null) {
-            startFuture.complete(null);
+        CompletableFuture<Void> fut = startFuture;
+
+        if (fut != null) {
+            startFuture = null;
+            fut.complete(null);
         }
 
         return START_NOT_STICKY;

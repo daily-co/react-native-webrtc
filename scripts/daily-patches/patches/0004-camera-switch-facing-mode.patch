@@ -15,8 +15,8 @@ stopped (muted) and handles devices with more than two cameras.
  ios/RCTWebRTC/VideoCaptureController.h        |   3 +-
  ios/RCTWebRTC/VideoCaptureController.m        |  15 +-
  ios/RCTWebRTC/WebRTCModule+RTCMediaStream.m   |  35 ++++
- src/MediaStreamTrack.ts                       |  19 ++-
- 7 files changed, 280 insertions(+), 6 deletions(-)
+ src/MediaStreamTrack.ts                       |  26 ++-
+ 7 files changed, 286 insertions(+), 7 deletions(-)
 
 diff --git a/android/src/main/java/com/oney/WebRTCModule/CameraCaptureController.java b/android/src/main/java/com/oney/WebRTCModule/CameraCaptureController.java
 index 1980f6c..3e1e8da 100644
@@ -213,10 +213,10 @@ index 1980f6c..3e1e8da 100644
          // Find actual capture format.
          Size actualSize = null;
 diff --git a/android/src/main/java/com/oney/WebRTCModule/GetUserMediaImpl.java b/android/src/main/java/com/oney/WebRTCModule/GetUserMediaImpl.java
-index f4f65a2..e44f311 100644
+index a2e5098..e049285 100644
 --- a/android/src/main/java/com/oney/WebRTCModule/GetUserMediaImpl.java
 +++ b/android/src/main/java/com/oney/WebRTCModule/GetUserMediaImpl.java
-@@ -258,6 +258,25 @@ class GetUserMediaImpl {
+@@ -298,6 +298,25 @@ class GetUserMediaImpl {
          }
      }
  
@@ -239,14 +239,14 @@ index f4f65a2..e44f311 100644
 +        }
 +    }
 +
-     void getDisplayMedia(Promise promise) {
-         if (this.displayMediaPromise != null) {
-             promise.reject(new RuntimeException("Another operation is pending."));
+     void initializeConstraints(ReadableMap constraints) {
+ 
+         // Handle the incoming params
 diff --git a/android/src/main/java/com/oney/WebRTCModule/WebRTCModule.java b/android/src/main/java/com/oney/WebRTCModule/WebRTCModule.java
-index 996648c..0b9194e 100644
+index d3bfe07..cfd8e34 100644
 --- a/android/src/main/java/com/oney/WebRTCModule/WebRTCModule.java
 +++ b/android/src/main/java/com/oney/WebRTCModule/WebRTCModule.java
-@@ -882,6 +882,51 @@ public class WebRTCModule extends ReactContextBaseJavaModule {
+@@ -900,6 +900,51 @@ public class WebRTCModule extends ReactContextBaseJavaModule {
          });
      }
  
@@ -345,10 +345,10 @@ index e7f52a1..532276a 100644
 \ No newline at end of file
 +#endif
 diff --git a/ios/RCTWebRTC/WebRTCModule+RTCMediaStream.m b/ios/RCTWebRTC/WebRTCModule+RTCMediaStream.m
-index fe33eae..e0da4cf 100644
+index d2078d2..c4e0347 100644
 --- a/ios/RCTWebRTC/WebRTCModule+RTCMediaStream.m
 +++ b/ios/RCTWebRTC/WebRTCModule+RTCMediaStream.m
-@@ -417,6 +417,26 @@ - (RTCVideoTrack *)createScreenCaptureVideoTrack {
+@@ -431,6 +431,26 @@ - (RTCVideoTrack *)createScreenCaptureVideoTrack {
  #endif
  }
  
@@ -375,7 +375,7 @@ index fe33eae..e0da4cf 100644
  RCT_EXPORT_METHOD(mediaStreamTrackApplyConstraints : (nonnull NSString *)trackID : (NSDictionary *)
                        constraints : (RCTPromiseResolveBlock)resolve : (RCTPromiseRejectBlock)reject) {
  #if TARGET_OS_TV
-@@ -448,6 +468,21 @@ - (RTCVideoTrack *)createScreenCaptureVideoTrack {
+@@ -462,6 +482,21 @@ - (RTCVideoTrack *)createScreenCaptureVideoTrack {
  #endif
  }
  
@@ -398,15 +398,31 @@ index fe33eae..e0da4cf 100644
      RTCMediaStreamTrack *track = [self trackForId:trackID pcId:pcId];
      if (track && [track.kind isEqualToString:@"audio"]) {
 diff --git a/src/MediaStreamTrack.ts b/src/MediaStreamTrack.ts
-index a33e8b7..67f0d8c 100644
+index 2983271..39aadab 100644
 --- a/src/MediaStreamTrack.ts
 +++ b/src/MediaStreamTrack.ts
-@@ -119,12 +119,23 @@ export default class MediaStreamTrack extends EventTarget<MediaStreamTrackEventM
+@@ -134,7 +134,7 @@ export default class MediaStreamTrack extends EventTarget<MediaStreamTrackEventM
+      *
+      * @deprecated Use applyConstraints instead.
+      */
+-    _switchCamera(): void {
++    _switchCamera(): Promise<string> {
+         if (this.remote) {
+             throw new Error('Not implemented for remote tracks');
+         }
+@@ -143,12 +143,28 @@ export default class MediaStreamTrack extends EventTarget<MediaStreamTrackEventM
              throw new Error('Only implemented for video tracks');
          }
  
 -        const constraints = deepClone(this._settings);
-+        return WebRTCModule.mediaStreamTrackSwitchCamera(this.id);
++        return WebRTCModule.mediaStreamTrackSwitchCamera(this.id).then((facingMode: string) => {
++            // applyConstraints falls back to this value, keep it in sync with the active camera.
++            this._settings.facingMode = facingMode;
+ 
+-        delete constraints.deviceId;
+-        constraints.facingMode = this._settings.facingMode === 'user' ? 'environment' : 'user';
++            return facingMode;
++        });
 +    }
 +
 +    /**
@@ -417,9 +433,7 @@ index a33e8b7..67f0d8c 100644
 +        if (this.remote) {
 +            throw new Error('Not implemented for remote tracks');
 +        }
- 
--        delete constraints.deviceId;
--        constraints.facingMode = this._settings.facingMode === 'user' ? 'environment' : 'user';
++
 +        if (this.kind !== 'video') {
 +            throw new Error('Only implemented for video tracks');
 +        }

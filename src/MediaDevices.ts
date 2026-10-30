@@ -1,9 +1,9 @@
-import { EventTarget, Event, defineEventAttribute } from 'event-target-shim';
 import { NativeModules } from 'react-native';
 
 import { addListener } from './EventEmitter';
-import getDisplayMedia from './getDisplayMedia';
-import getUserMedia, { Constraints } from './getUserMedia';
+import getDisplayMedia, { Constraints as DisplayMediaConstraints } from './getDisplayMedia';
+import getUserMedia, { Constraints as UserMediaConstraints } from './getUserMedia';
+import { Event, EventTarget, getEventAttributeValue, setEventAttributeValue } from './vendor/event-target-shim';
 
 const { WebRTCModule } = NativeModules;
 
@@ -15,6 +15,14 @@ class MediaDevices extends EventTarget<MediaDevicesEventMap> {
     constructor() {
         super();
         this._registerEvents();
+    }
+
+    get ondevicechange() {
+        return getEventAttributeValue(this, 'devicechange');
+    }
+
+    set ondevicechange(value) {
+        setEventAttributeValue(this, 'devicechange', value);
     }
 
     /**
@@ -29,10 +37,11 @@ class MediaDevices extends EventTarget<MediaDevicesEventMap> {
      * W3C "Screen Capture" compatible {@code getDisplayMedia} implementation.
      * See: https://w3c.github.io/mediacapture-screen-share/
      *
+     * @param {*} constraints
      * @returns {Promise}
      */
-    getDisplayMedia() {
-        return getDisplayMedia();
+    getDisplayMedia(constraints: DisplayMediaConstraints) {
+        return getDisplayMedia(constraints);
     }
 
     /**
@@ -43,7 +52,7 @@ class MediaDevices extends EventTarget<MediaDevicesEventMap> {
      * @param {*} constraints
      * @returns {Promise}
      */
-    getUserMedia(constraints: Constraints) {
+    getUserMedia(constraints: UserMediaConstraints) {
         return getUserMedia(constraints);
     }
 
@@ -57,13 +66,5 @@ class MediaDevices extends EventTarget<MediaDevicesEventMap> {
         });
     }
 }
-
-/**
- * Define the `onxxx` event handlers.
- */
-const proto = MediaDevices.prototype;
-
-defineEventAttribute(proto, 'devicechange');
-
 
 export default new MediaDevices();

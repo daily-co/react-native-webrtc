@@ -14,12 +14,12 @@ npm run install-local installs this checkout through npm pack.
  examples/DailySelfTest/app.json               |  26 ++
  examples/DailySelfTest/index.js               |   5 +
  examples/DailySelfTest/package.json           |  23 ++
- .../DailySelfTest/scripts/install-local.sh    |  18 +
+ .../DailySelfTest/scripts/install-local.sh    |  22 ++
  .../DailySelfTest/scripts/run-selftest.sh     |  62 ++++
  examples/DailySelfTest/src/App.tsx            |  55 +++
- examples/DailySelfTest/src/selfTest.ts        | 320 ++++++++++++++++++
+ examples/DailySelfTest/src/selfTest.ts        | 331 ++++++++++++++++++
  examples/DailySelfTest/tsconfig.json          |   6 +
- 10 files changed, 534 insertions(+)
+ 10 files changed, 549 insertions(+)
  create mode 100644 examples/DailySelfTest/.gitignore
  create mode 100644 examples/DailySelfTest/README.md
  create mode 100644 examples/DailySelfTest/app.json
@@ -136,10 +136,10 @@ index 0000000..f1ac758
 +}
 diff --git a/examples/DailySelfTest/scripts/install-local.sh b/examples/DailySelfTest/scripts/install-local.sh
 new file mode 100755
-index 0000000..a0bbe7c
+index 0000000..5de8551
 --- /dev/null
 +++ b/examples/DailySelfTest/scripts/install-local.sh
-@@ -0,0 +1,18 @@
+@@ -0,0 +1,22 @@
 +#!/usr/bin/env bash
 +# Packs this react-native-webrtc checkout exactly as it would be published to npm
 +# and installs it into the app. Re-run after every change to the library.
@@ -156,8 +156,12 @@ index 0000000..a0bbe7c
 +
 +cd "$APP"
 +rm -rf node_modules/@daily-co/react-native-webrtc
-+npm install
-+node -p "'installed @daily-co/react-native-webrtc ' + require('@daily-co/react-native-webrtc/package.json').version"
++# Name the tarball: a plain `npm install` keeps the version and integrity pinned in package-lock.json.
++npm install "file:.local/react-native-webrtc.tgz"
++INSTALLED="$(node -p "require('@daily-co/react-native-webrtc/package.json').version")"
++EXPECTED="$(node -p "require('$ROOT/package.json').version")"
++[ "$INSTALLED" = "$EXPECTED" ] || { echo "installed $INSTALLED, expected $EXPECTED"; exit 1; }
++echo "installed @daily-co/react-native-webrtc $INSTALLED"
 diff --git a/examples/DailySelfTest/scripts/run-selftest.sh b/examples/DailySelfTest/scripts/run-selftest.sh
 new file mode 100755
 index 0000000..1c4c1a2
@@ -289,10 +293,10 @@ index 0000000..485b51a
 +export default App;
 diff --git a/examples/DailySelfTest/src/selfTest.ts b/examples/DailySelfTest/src/selfTest.ts
 new file mode 100644
-index 0000000..de19400
+index 0000000..c026671
 --- /dev/null
 +++ b/examples/DailySelfTest/src/selfTest.ts
-@@ -0,0 +1,320 @@
+@@ -0,0 +1,331 @@
 +/**
 + * Checks the Daily-specific features of @daily-co/react-native-webrtc (see
 + * scripts/daily-patches/manifest.json): the APIs react-native-daily-js and
@@ -511,6 +515,17 @@ index 0000000..de19400
 +        const back = await track._switchCamera();
 +        assert(back === 'user', `switching back resolved ${back}`);
 +        return 'user -> environment -> user';
++      }),
++  },
++  {
++    // applyConstraints reuses the last known facing mode when none is given.
++    name: 'camera: applyConstraints keeps the facing mode after _switchCamera',
++    run: (ctx) =>
++      withCamera(ctx, async (track) => {
++        await track._switchCamera();
++        await track.applyConstraints({ width: 640 });
++        const reported = await track._getCameraFacingMode();
++        assert(reported === 'environment', `after applyConstraints reported ${reported}`);
 +      }),
 +  },
 +  {

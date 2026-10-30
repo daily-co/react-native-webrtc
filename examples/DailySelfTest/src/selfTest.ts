@@ -219,6 +219,17 @@ const checks: Check[] = [
       }),
   },
   {
+    // applyConstraints reuses the last known facing mode when none is given.
+    name: 'camera: applyConstraints keeps the facing mode after _switchCamera',
+    run: (ctx) =>
+      withCamera(ctx, async (track) => {
+        await track._switchCamera();
+        await track.applyConstraints({ width: 640 });
+        const reported = await track._getCameraFacingMode();
+        assert(reported === 'environment', `after applyConstraints reported ${reported}`);
+      }),
+  },
+  {
     // Muting (track.enabled = false) stops the capturer; Daily still lets the
     // user flip the camera, and the choice must survive unmuting.
     name: 'camera: _switchCamera while muted is kept after unmute',

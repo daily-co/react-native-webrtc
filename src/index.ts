@@ -16,11 +16,14 @@ import MediaStreamTrack, { type MediaTrackSettings } from './MediaStreamTrack';
 import MediaStreamTrackEvent from './MediaStreamTrackEvent';
 import permissions from './Permissions';
 import RTCAudioSession from './RTCAudioSession';
+import RTCCertificate from './RTCCertificate';
 import RTCErrorEvent from './RTCErrorEvent';
 import RTCIceCandidate from './RTCIceCandidate';
 import RTCPIPView, { startIOSPIP, stopIOSPIP } from './RTCPIPView';
 import RTCPeerConnection from './RTCPeerConnection';
+import RTCRtpEncodingParameters, { type RTCRtpEncodingParametersInit } from './RTCRtpEncodingParameters';
 import RTCRtpReceiver from './RTCRtpReceiver';
+import RTCRtpSendParameters, { type RTCRtpSendParametersInit } from './RTCRtpSendParameters';
 import RTCRtpSender from './RTCRtpSender';
 import RTCRtpTransceiver from './RTCRtpTransceiver';
 import RTCSessionDescription from './RTCSessionDescription';
@@ -36,17 +39,22 @@ export {
     RTCIceCandidate,
     RTCPeerConnection,
     RTCSessionDescription,
+    RTCCertificate,
     RTCView,
     RTCPIPView,
     ScreenCapturePickerView,
+    RTCRtpEncodingParameters,
     RTCRtpTransceiver,
     RTCRtpReceiver,
     RTCRtpSender,
+    RTCRtpSendParameters,
     RTCErrorEvent,
     RTCAudioSession,
     MediaStream,
     MediaStreamTrack,
     type MediaTrackSettings,
+    type RTCRtpEncodingParametersInit,
+    type RTCRtpSendParametersInit,
     type RTCVideoViewProps,
     type RTCIOSPIPOptions,
     mediaDevices,
@@ -80,9 +88,8 @@ function registerGlobals(): void {
     });
 
     global.RTCIceCandidate = RTCIceCandidate;
+    global.RTCCertificate = RTCCertificate;
     global.RTCPeerConnection = RTCPeerConnection;
-    global.RTCRtpReceiver = RTCRtpReceiver;
-    global.RTCRtpSender = RTCRtpReceiver;
     global.RTCSessionDescription = RTCSessionDescription;
     global.MediaStream = MediaStream;
     global.MediaStreamTrack = MediaStreamTrack;

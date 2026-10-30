@@ -15,14 +15,14 @@ DailyAudioMode state category, which the devices manager depends on.
  ios/RCTWebRTC/WebRTCModule+DailyAudioMode.h   |  22 ++
  ios/RCTWebRTC/WebRTCModule+DailyAudioMode.m   |  18 ++
  .../WebRTCModule+DailyDevicesManager.h        |  26 ++
- .../WebRTCModule+DailyDevicesManager.m        | 271 ++++++++++++++++++
+ .../WebRTCModule+DailyDevicesManager.m        | 274 ++++++++++++++++++
  ios/RCTWebRTC/WebRTCModule+RTCMediaStream.m   |   4 +
  ios/RCTWebRTC/WebRTCModule.h                  |   1 +
  ios/RCTWebRTC/WebRTCModule.m                  |   3 +-
  src/EventEmitter.ts                           |   1 +
- src/MediaDevices.ts                           |  16 ++
+ src/MediaDevices.ts                           |  16 +
  src/index.ts                                  |   7 +
- 12 files changed, 600 insertions(+), 2 deletions(-)
+ 12 files changed, 603 insertions(+), 2 deletions(-)
  create mode 100644 android/src/main/java/com/oney/WebRTCModule/DailyWebRTCDevicesManager.java
  create mode 100644 ios/RCTWebRTC/WebRTCModule+DailyAudioMode.h
  create mode 100644 ios/RCTWebRTC/WebRTCModule+DailyAudioMode.m
@@ -240,18 +240,18 @@ index 0000000..c6c5d2b
 +
 +}
 diff --git a/android/src/main/java/com/oney/WebRTCModule/WebRTCModule.java b/android/src/main/java/com/oney/WebRTCModule/WebRTCModule.java
-index 0b9194e..e8031af 100644
+index cfd8e34..49126bf 100644
 --- a/android/src/main/java/com/oney/WebRTCModule/WebRTCModule.java
 +++ b/android/src/main/java/com/oney/WebRTCModule/WebRTCModule.java
-@@ -50,6 +50,7 @@ public class WebRTCModule extends ReactContextBaseJavaModule {
-     final Map<String, MediaStream> localStreams;
+@@ -58,6 +58,7 @@ public class WebRTCModule extends ReactContextBaseJavaModule {
+     private static final Map<String, RtcCertificatePem> mCertificates = new HashMap<>();
  
      private final GetUserMediaImpl getUserMediaImpl;
 +    private final DailyWebRTCDevicesManager dailyWebRTCDevicesManager;
  
      public WebRTCModule(ReactApplicationContext reactContext) {
          super(reactContext);
-@@ -111,6 +112,7 @@ public class WebRTCModule extends ReactContextBaseJavaModule {
+@@ -119,6 +120,7 @@ public class WebRTCModule extends ReactContextBaseJavaModule {
          mAudioDeviceModule = adm;
  
          getUserMediaImpl = new GetUserMediaImpl(this, reactContext);
@@ -259,7 +259,7 @@ index 0b9194e..e8031af 100644
      }
  
      @NonNull
-@@ -780,7 +782,10 @@ public class WebRTCModule extends ReactContextBaseJavaModule {
+@@ -798,7 +800,10 @@ public class WebRTCModule extends ReactContextBaseJavaModule {
  
      @ReactMethod
      public void enumerateDevices(Callback callback) {
@@ -271,7 +271,7 @@ index 0b9194e..e8031af 100644
      }
  
      @ReactMethod
-@@ -1472,4 +1477,26 @@ public class WebRTCModule extends ReactContextBaseJavaModule {
+@@ -1561,4 +1566,26 @@ public class WebRTCModule extends ReactContextBaseJavaModule {
      public void removeListeners(Integer count) {
          // Keep: Required for RN built in Event Emitter Calls.
      }
@@ -384,10 +384,10 @@ index 0000000..70a7944
 +@end
 diff --git a/ios/RCTWebRTC/WebRTCModule+DailyDevicesManager.m b/ios/RCTWebRTC/WebRTCModule+DailyDevicesManager.m
 new file mode 100644
-index 0000000..07abec1
+index 0000000..22007c6
 --- /dev/null
 +++ b/ios/RCTWebRTC/WebRTCModule+DailyDevicesManager.m
-@@ -0,0 +1,271 @@
+@@ -0,0 +1,274 @@
 +//
 +//  WebRTCModule+DailyDevicesManager.m
 +//  react-native-webrtc
@@ -435,6 +435,9 @@ index 0000000..07abec1
 +                                                                 mediaType:AVMediaTypeVideo
 +                                                                  position:AVCaptureDevicePositionUnspecified];
 +    for (AVCaptureDevice *device in videoevicesSession.devices) {
++        if (device.uniqueID == nil) {
++            continue;
++        }
 +        NSString *position = @"unknown";
 +        if (device.position == AVCaptureDevicePositionBack) {
 +            position = @"environment";
@@ -660,10 +663,10 @@ index 0000000..07abec1
 +
 +@end
 diff --git a/ios/RCTWebRTC/WebRTCModule+RTCMediaStream.m b/ios/RCTWebRTC/WebRTCModule+RTCMediaStream.m
-index e0da4cf..9eb04a9 100644
+index c4e0347..560bf32 100644
 --- a/ios/RCTWebRTC/WebRTCModule+RTCMediaStream.m
 +++ b/ios/RCTWebRTC/WebRTCModule+RTCMediaStream.m
-@@ -274,6 +274,9 @@ - (RTCVideoTrack *)createScreenCaptureVideoTrack {
+@@ -281,6 +281,9 @@ - (RTCVideoTrack *)createScreenCaptureVideoTrack {
  
  #pragma mark - Other stream related APIs
  
@@ -673,7 +676,7 @@ index e0da4cf..9eb04a9 100644
  RCT_EXPORT_METHOD(enumerateDevices : (RCTResponseSenderBlock)callback) {
  #if TARGET_OS_TV
      callback(@[]);
-@@ -334,6 +337,7 @@ - (RTCVideoTrack *)createScreenCaptureVideoTrack {
+@@ -348,6 +351,7 @@ - (RTCVideoTrack *)createScreenCaptureVideoTrack {
      callback(@[ devices ]);
  #endif
  }
@@ -720,17 +723,16 @@ index 48adb14..db02c39 100644
  
  const eventEmitter = new EventEmitter();
 diff --git a/src/MediaDevices.ts b/src/MediaDevices.ts
-index 42920f6..5ce7da3 100644
+index 6792edb..97f509f 100644
 --- a/src/MediaDevices.ts
 +++ b/src/MediaDevices.ts
-@@ -1,6 +1,7 @@
- import { EventTarget, Event, defineEventAttribute } from 'event-target-shim';
+@@ -1,5 +1,6 @@
  import { NativeModules } from 'react-native';
  
 +import { addListener } from './EventEmitter';
- import getDisplayMedia from './getDisplayMedia';
- import getUserMedia, { Constraints } from './getUserMedia';
- 
+ import getDisplayMedia, { Constraints as DisplayMediaConstraints } from './getDisplayMedia';
+ import getUserMedia, { Constraints as UserMediaConstraints } from './getUserMedia';
+ import { Event, EventTarget, getEventAttributeValue, setEventAttributeValue } from './vendor/event-target-shim';
 @@ -11,6 +12,11 @@ type MediaDevicesEventMap = {
  }
  
@@ -740,11 +742,11 @@ index 42920f6..5ce7da3 100644
 +        this._registerEvents();
 +    }
 +
-     /**
-      * W3C "Media Capture and Streams" compatible {@code enumerateDevices}
-      * implementation.
-@@ -40,6 +46,16 @@ class MediaDevices extends EventTarget<MediaDevicesEventMap> {
-     getUserMedia(constraints: Constraints) {
+     get ondevicechange() {
+         return getEventAttributeValue(this, 'devicechange');
+     }
+@@ -49,6 +55,16 @@ class MediaDevices extends EventTarget<MediaDevicesEventMap> {
+     getUserMedia(constraints: UserMediaConstraints) {
          return getUserMedia(constraints);
      }
 +
@@ -759,12 +761,12 @@ index 42920f6..5ce7da3 100644
 +    }
  }
  
- /**
+ export default new MediaDevices();
 diff --git a/src/index.ts b/src/index.ts
-index fad7c69..616852c 100644
+index e08cfb6..173ddbc 100644
 --- a/src/index.ts
 +++ b/src/index.ts
-@@ -71,6 +71,13 @@ function registerGlobals(): void {
+@@ -79,6 +79,13 @@ function registerGlobals(): void {
      global.navigator.mediaDevices.getUserMedia = mediaDevices.getUserMedia.bind(mediaDevices);
      global.navigator.mediaDevices.getDisplayMedia = mediaDevices.getDisplayMedia.bind(mediaDevices);
      global.navigator.mediaDevices.enumerateDevices = mediaDevices.enumerateDevices.bind(mediaDevices);
@@ -777,4 +779,4 @@ index fad7c69..616852c 100644
 +    });
  
      global.RTCIceCandidate = RTCIceCandidate;
-     global.RTCPeerConnection = RTCPeerConnection;
+     global.RTCCertificate = RTCCertificate;

@@ -13,6 +13,7 @@ import org.webrtc.VideoCapturer;
 
 public abstract class AbstractVideoCaptureController {
     private static final String TAG = AbstractVideoCaptureController.class.getSimpleName();
+
     protected int targetWidth;
     protected int targetHeight;
     protected int targetFps;

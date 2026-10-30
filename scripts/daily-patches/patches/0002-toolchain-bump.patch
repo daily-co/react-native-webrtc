@@ -15,10 +15,10 @@ react-native and debug. RTCPIPView fallbackView becomes React.ReactNode, which
  3 files changed, 8 insertions(+), 7 deletions(-)
 
 diff --git a/package.json b/package.json
-index 67c4cfb..973acdd 100644
+index fafd26d..6ae34fe 100644
 --- a/package.json
 +++ b/package.json
-@@ -41,8 +41,8 @@
+@@ -40,8 +40,8 @@
    },
    "devDependencies": {
      "@types/debug": "4.1.7",
@@ -29,7 +29,7 @@ index 67c4cfb..973acdd 100644
      "@typescript-eslint/eslint-plugin": "^5.39.0",
      "@typescript-eslint/parser": "^5.39.0",
      "eslint": "^8.24.0",
-@@ -50,8 +50,8 @@
+@@ -49,8 +49,8 @@
      "husky": "7.0.2",
      "lint-staged": "11.2.3",
      "prettier": "2.4.1",

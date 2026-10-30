@@ -28,13 +28,13 @@ npm test -- android   # or: npm test -- ios
 | enumerateDevices lists audio outputs | `devices-manager-devicechange` |
 | setDailyAudioMode video/voice/idle | `daily-audio-mode` |
 | setAudioDevice + getAudioDevice round trip | `devices-manager-devicechange` |
-| camera: _switchCamera toggles facing mode / while muted | `camera-switch-facing-mode` |
+| camera: _switchCamera toggles facing mode / while muted / applyConstraints keeps the facing mode | `camera-switch-facing-mode` |
 | iOS: enableNoOpRecordingEnsuringBackgroundContinuity | `daily-audio-mode` |
 | Android: getDisplayMedia starts screen capture | `android-screenshare-fgs` |
 
 - **Expected skips:**
   - Android: 1 (the iOS-only check).
-  - iOS simulator: 4 (the camera checks, the audio-route round trip, and screen share, which needs the broadcast picker).
+  - iOS simulator: 5 (the camera checks, the audio-route round trip, and screen share, which needs the broadcast picker).
 - **Not covered:** hearing the audio route change, Bluetooth, `devicechange` on a real headset plug, and the app staying alive in the background on iOS. The user checks those on a real device.
 
 When a patch adds or changes a Daily-facing API, add or update a `{ name, run }` entry in `src/selfTest.ts` (throw to fail, `skip()` to skip) and the table above. The app belongs to the `daily-selftest-app` patch, so change it through the patch queue.
