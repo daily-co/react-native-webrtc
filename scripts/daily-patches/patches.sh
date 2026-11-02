@@ -12,6 +12,9 @@
 #                                   changes to patched files must still be present.
 #   patches.sh build                npm run lint + npm run prepare, then check that index.d.ts
 #                                   imports resolve and re-exports everything src/index.ts exports.
+#   patches.sh coverage <tag> <ref> Check that every native method, JS method and native event the
+#                                   patches add or change (<tag>..<ref>) is named in the self-test.
+#   patches.sh api <base> <new>     Diff the public TypeScript declarations of upstream <base> and <new>.
 set -euo pipefail
 
 DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -209,11 +212,82 @@ console.log('index.d.ts: imports resolve and re-exports match src/index.ts');
 EOF
 }
 
+cmd_coverage() {
+  local tag="$1" ref="$2"
+  # Lines the patches add to the library itself (not the self-test app or fork tooling).
+  node - "$MANIFEST" "$ref" <(git diff -U0 "$tag" "$ref" -- android ios src $(excludes)) <<'EOF'
+const { execFileSync } = require('child_process');
+const [manifestPath, ref, diffPath] = process.argv.slice(2);
+const { coverage } = require(manifestPath);
+const diff = require('fs').readFileSync(diffPath, 'utf8');
+const found = new Map(); // name -> where
+const constants = new Map(), sent = [];
+let file = '', prevAdded = '';
+for (const line of diff.split('\n')) {
+  if (line.startsWith('+++ ')) { file = line.slice(6); prevAdded = ''; continue; }
+  if (!line.startsWith('+') || line.startsWith('+++')) { prevAdded = ''; continue; }
+  const l = line.slice(1), code = l.trim();
+  if (code.startsWith('//') || code.startsWith('*')) continue;
+  const add = (name, kind) => found.has(name) || found.set(name, `${kind} in ${file}`);
+  let m;
+  if ((m = l.match(/RCT_EXPORT_METHOD\(\s*(\w+)/))) add(m[1], 'iOS method');
+  if (/^@ReactMethod\b/.test(prevAdded) && (m = l.match(/^\s*public\s+[\w<>\[\]]+\s+(\w+)\s*\(/))) add(m[1], 'Android method');
+  // Events are sent by literal or by a string constant, resolved once all constants are known.
+  if ((m = l.match(/static final String (\w+) = "(\w+)"/)) || (m = l.match(/NSString \*const (\w+) = @"(\w+)"/))) constants.set(m[1], m[2]);
+  if ((m = l.match(/(?:sendEvent\s*\(|sendEventWithName:)\s*@?"(\w+)"/))) add(m[1], 'native event');
+  if ((m = l.match(/(?:sendEvent\s*\(|sendEventWithName:)\s*(\w+)/))) sent.push([m[1], file]);
+  if (file === 'src/EventEmitter.ts' && (m = l.match(/^\s*'(\w+)',?$/))) add(m[1], 'native event');
+  // Class members are indented by exactly 4 spaces in src/.
+  if (file.startsWith('src/') && (m = l.match(/^ {4}(?:async\s+)?(\w+)\s*\(.*\)\s*(?::\s*[^=]+)?\{$/))) add(m[1], 'JS method');
+  prevAdded = code;
+}
+for (const [id, where] of sent) {
+  if (constants.has(id) && !found.has(constants.get(id))) found.set(constants.get(id), `native event in ${where}`);
+}
+if (!found.size) {
+  console.error('found no API added by the patches; is <tag> the upstream tag the patches apply to?');
+  process.exit(1);
+}
+const test = execFileSync('git', ['show', `${ref}:${coverage.selfTest}`], { encoding: 'utf8' });
+const ignored = new Set(['constructor', ...Object.keys(coverage.internal)]);
+const missing = [...found].filter(([name]) => !ignored.has(name) && !new RegExp(`\\b${name}\\b`).test(test));
+for (const [name, where] of [...found].sort()) {
+  const status = ignored.has(name) ? 'internal' : missing.some(([n]) => n === name) ? 'MISSING' : 'covered';
+  console.log(`  ${name.padEnd(52)} ${status.padEnd(9)} ${where}`);
+}
+if (missing.length) {
+  console.error(`not named in ${coverage.selfTest}: ${missing.map(([n]) => n).join(', ')}`);
+  console.error('add a check for it, or list it in manifest coverage.internal with the reason');
+  process.exit(1);
+}
+console.log(`every API the patches add or change is named in ${coverage.selfTest}`);
+EOF
+}
+
+cmd_api() {
+  local base="$1" new="$2" out tag
+  out="$(mktemp -d)"
+  for tag in "$base" "$new"; do
+    new_worktree "$tag"
+    ln -s "$PWD/node_modules" "$WT/node_modules"
+    # Type errors (older upstream configs, missing dependencies) don't block emitting declarations.
+    node_modules/.bin/tsc -p "$WT" --declaration --emitDeclarationOnly --noEmit false --skipLibCheck \
+      --types react,react-native,debug --outDir "$out/$tag" >/dev/null 2>&1 || true
+    [ -n "$(ls -A "$out/$tag" 2>/dev/null)" ] || { echo "tsc emitted no declarations for $tag"; exit 1; }
+    cleanup; WT=""
+  done
+  # The vendored event-target-shim is third-party; its declarations are copied, not generated.
+  (cd "$out" && diff -ru -x vendor "$base" "$new") || true
+  rm -rf "$out"
+}
+
 case "${1:-}" in
   check) [ $# -eq 2 ] || { echo "usage: $0 check <tag>"; exit 2; }; cmd_check "$2" ;;
   generate) cmd_generate "${2:-}" ;;
   verify) [ $# -eq 3 ] || { echo "usage: $0 verify <tag> <ref>"; exit 2; }; cmd_verify "$2" "$3" ;;
   audit) [ $# -eq 4 ] || { echo "usage: $0 audit <base> <new> <ref>"; exit 2; }; cmd_audit "$2" "$3" "$4" ;;
   build) cmd_build ;;
-  *) sed -n '2,14p' "$0" | sed 's/^# \{0,1\}//'; exit 2 ;;
+  coverage) [ $# -eq 3 ] || { echo "usage: $0 coverage <tag> <ref>"; exit 2; }; cmd_coverage "$2" "$3" ;;
+  api) [ $# -eq 3 ] || { echo "usage: $0 api <base> <new>"; exit 2; }; cmd_api "$2" "$3" ;;
+  *) sed -n '2,17p' "$0" | sed 's/^# \{0,1\}//'; exit 2 ;;
 esac

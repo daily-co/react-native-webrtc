@@ -1,4 +1,3 @@
-import { EventTarget, Event, defineEventAttribute } from 'event-target-shim';
 import { NativeModules } from 'react-native';
 
 import { addListener, removeListener } from './EventEmitter';
@@ -6,6 +5,7 @@ import Logger from './Logger';
 import MediaStream from './MediaStream';
 import MediaStreamTrack from './MediaStreamTrack';
 import MediaStreamTrackEvent from './MediaStreamTrackEvent';
+import RTCCertificate from './RTCCertificate';
 import RTCDataChannel from './RTCDataChannel';
 import RTCDataChannelEvent from './RTCDataChannelEvent';
 import RTCIceCandidate from './RTCIceCandidate';
@@ -19,6 +19,7 @@ import RTCSessionDescription, { RTCSessionDescriptionInit } from './RTCSessionDe
 import RTCTrackEvent from './RTCTrackEvent';
 import * as RTCUtil from './RTCUtil';
 import { RTCOfferOptions } from './RTCUtil';
+import { Event, EventTarget, getEventAttributeValue, setEventAttributeValue } from './vendor/event-target-shim';
 
 const log = new Logger('pc');
 const { WebRTCModule } = NativeModules;
@@ -55,6 +56,7 @@ type RTCIceServer = {
 
 type RTCConfiguration = {
     bundlePolicy?: 'balanced' | 'max-compat' | 'max-bundle',
+    certificates?: RTCCertificate[],
     iceCandidatePoolSize?: number,
     iceServers?: RTCIceServer[],
     iceTransportPolicy?: 'all' | 'relay',
@@ -89,6 +91,40 @@ export default class RTCPeerConnection extends EventTarget<RTCPeerConnectionEven
     _remoteStreams: Map<string, MediaStream>;
     _pendingTrackEvents: any[];
 
+    static generateCertificate(
+        keygenAlgorithm: string | {
+            name: string,
+            namedCurve?: string,
+            modulusLength?: number,
+            publicExponent?: Uint8Array,
+            hash?: string
+        }
+    ): Promise<RTCCertificate> {
+        const options: { keyType?: string, expires?: number } = {};
+
+        let algorithm = keygenAlgorithm;
+
+        if (typeof algorithm === 'string') {
+            algorithm = { name: algorithm };
+        }
+
+        if (algorithm.name === 'RSASSA-PKCS1-v1_5') {
+            options.keyType = 'RSA';
+        } else if (algorithm.name === 'ECDSA') {
+            options.keyType = 'ECDSA';
+        } else {
+            // Default to ECDSA for other cases or if unspecified
+            // This behavior matches common expectations when modern defaults are preferred
+            if (algorithm.name && algorithm.name.toUpperCase().includes('RSA')) {
+                options.keyType = 'RSA';
+            } else {
+                options.keyType = 'ECDSA';
+            }
+        }
+
+        return WebRTCModule.generateCertificate(options).then(info => new RTCCertificate(info));
+    }
+
     constructor(configuration?: RTCConfiguration) {
         super();
 
@@ -118,6 +154,16 @@ export default class RTCPeerConnection extends EventTarget<RTCPeerConnectionEven
 
             // Filter out bogus servers.
             configuration.iceServers = servers.filter(s => s.urls);
+
+            // Sanitize certificates.
+            if (configuration.certificates) {
+                // @ts-ignore
+                configuration.certificates = configuration.certificates.map(cert => {
+                    return {
+                        certificateId: cert._id
+                    };
+                });
+            }
         }
 
         if (!WebRTCModule.peerConnectionInit(configuration, this._pcId)) {
@@ -131,6 +177,86 @@ export default class RTCPeerConnection extends EventTarget<RTCPeerConnectionEven
         this._registerEvents();
 
         log.debug(`${this._pcId} ctor`);
+    }
+
+    get onconnectionstatechange() {
+        return getEventAttributeValue(this, 'connectionstatechange');
+    }
+
+    set onconnectionstatechange(value) {
+        setEventAttributeValue(this, 'connectionstatechange', value);
+    }
+
+    get onicecandidate() {
+        return getEventAttributeValue(this, 'icecandidate');
+    }
+
+    set onicecandidate(value) {
+        setEventAttributeValue(this, 'icecandidate', value);
+    }
+
+    get onicecandidateerror() {
+        return getEventAttributeValue(this, 'icecandidateerror');
+    }
+
+    set onicecandidateerror(value) {
+        setEventAttributeValue(this, 'icecandidateerror', value);
+    }
+
+    get oniceconnectionstatechange() {
+        return getEventAttributeValue(this, 'iceconnectionstatechange');
+    }
+
+    set oniceconnectionstatechange(value) {
+        setEventAttributeValue(this, 'iceconnectionstatechange', value);
+    }
+
+    get onicegatheringstatechange() {
+        return getEventAttributeValue(this, 'icegatheringstatechange');
+    }
+
+    set onicegatheringstatechange(value) {
+        setEventAttributeValue(this, 'icegatheringstatechange', value);
+    }
+
+    get onnegotiationneeded() {
+        return getEventAttributeValue(this, 'negotiationneeded');
+    }
+
+    set onnegotiationneeded(value) {
+        setEventAttributeValue(this, 'negotiationneeded', value);
+    }
+
+    get onsignalingstatechange() {
+        return getEventAttributeValue(this, 'signalingstatechange');
+    }
+
+    set onsignalingstatechange(value) {
+        setEventAttributeValue(this, 'signalingstatechange', value);
+    }
+
+    get ondatachannel() {
+        return getEventAttributeValue(this, 'datachannel');
+    }
+
+    set ondatachannel(value) {
+        setEventAttributeValue(this, 'datachannel', value);
+    }
+
+    get ontrack() {
+        return getEventAttributeValue(this, 'track');
+    }
+
+    set ontrack(value) {
+        setEventAttributeValue(this, 'track', value);
+    }
+
+    get onerror() {
+        return getEventAttributeValue(this, 'error');
+    }
+
+    set onerror(value) {
+        setEventAttributeValue(this, 'error', value);
     }
 
     async createOffer(options?:RTCOfferOptions) {
@@ -326,6 +452,10 @@ export default class RTCPeerConnection extends EventTarget<RTCPeerConnectionEven
     }
 
     async addIceCandidate(candidate): Promise<void> {
+        if (this.connectionState === 'closed') {
+            throw new Error('Peer Connection is closed');
+        }
+
         log.debug(`${this._pcId} addIceCandidate`);
 
         if (!candidate || !candidate.candidate) {
@@ -589,13 +719,6 @@ export default class RTCPeerConnection extends EventTarget<RTCPeerConnectionEven
             this.connectionState = ev.connectionState;
 
             this.dispatchEvent(new Event('connectionstatechange'));
-
-            if (ev.connectionState === 'closed') {
-                // This PeerConnection is done, clean up.
-                removeListener(this);
-
-                WebRTCModule.peerConnectionDispose(this._pcId);
-            }
         });
 
         addListener(this, 'peerConnectionSignalingStateChanged', (ev: any) => {
@@ -606,6 +729,13 @@ export default class RTCPeerConnection extends EventTarget<RTCPeerConnectionEven
             this.signalingState = ev.signalingState;
 
             this.dispatchEvent(new Event('signalingstatechange'));
+
+            if (ev.signalingState === 'closed') {
+                // This PeerConnection is done, clean up.
+                removeListener(this);
+
+                WebRTCModule.peerConnectionDispose(this._pcId);
+            }
         });
 
         // Consider moving away from this event: https://github.com/WebKit/WebKit/pull/3953
@@ -814,19 +944,3 @@ export default class RTCPeerConnection extends EventTarget<RTCPeerConnectionEven
         this._transceivers.sort((a, b) => a.order - b.order);
     }
 }
-
-/**
- * Define the `onxxx` event handlers.
- */
-const proto = RTCPeerConnection.prototype;
-
-defineEventAttribute(proto, 'connectionstatechange');
-defineEventAttribute(proto, 'icecandidate');
-defineEventAttribute(proto, 'icecandidateerror');
-defineEventAttribute(proto, 'iceconnectionstatechange');
-defineEventAttribute(proto, 'icegatheringstatechange');
-defineEventAttribute(proto, 'negotiationneeded');
-defineEventAttribute(proto, 'signalingstatechange');
-defineEventAttribute(proto, 'datachannel');
-defineEventAttribute(proto, 'track');
-defineEventAttribute(proto, 'error');

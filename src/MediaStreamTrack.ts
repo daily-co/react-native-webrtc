@@ -1,10 +1,10 @@
-import { EventTarget, Event, defineEventAttribute } from 'event-target-shim';
 import { NativeModules } from 'react-native';
 
 import { MediaTrackConstraints } from './Constraints';
 import { addListener, removeListener } from './EventEmitter';
 import Logger from './Logger';
 import { deepClone, normalizeConstraints } from './RTCUtil';
+import { Event, EventTarget, getEventAttributeValue, setEventAttributeValue } from './vendor/event-target-shim';
 
 const log = new Logger('pc');
 const { WebRTCModule } = NativeModules;
@@ -70,6 +70,30 @@ export default class MediaStreamTrack extends EventTarget<MediaStreamTrackEventM
         }
     }
 
+    get onended() {
+        return getEventAttributeValue(this, 'ended');
+    }
+
+    set onended(value) {
+        setEventAttributeValue(this, 'ended', value);
+    }
+
+    get onmute() {
+        return getEventAttributeValue(this, 'mute');
+    }
+
+    set onmute(value) {
+        setEventAttributeValue(this, 'mute', value);
+    }
+
+    get onunmute() {
+        return getEventAttributeValue(this, 'unmute');
+    }
+
+    set onunmute(value) {
+        setEventAttributeValue(this, 'unmute', value);
+    }
+
     get enabled(): boolean {
         return this._enabled;
     }
@@ -110,7 +134,7 @@ export default class MediaStreamTrack extends EventTarget<MediaStreamTrackEventM
      *
      * @deprecated Use applyConstraints instead.
      */
-    _switchCamera(): void {
+    _switchCamera(): Promise<string> {
         if (this.remote) {
             throw new Error('Not implemented for remote tracks');
         }
@@ -119,7 +143,12 @@ export default class MediaStreamTrack extends EventTarget<MediaStreamTrackEventM
             throw new Error('Only implemented for video tracks');
         }
 
-        return WebRTCModule.mediaStreamTrackSwitchCamera(this.id);
+        return WebRTCModule.mediaStreamTrackSwitchCamera(this.id).then((facingMode: string) => {
+            // applyConstraints falls back to this value, keep it in sync with the active camera.
+            this._settings.facingMode = facingMode;
+
+            return facingMode;
+        });
     }
 
     /**
@@ -197,6 +226,11 @@ export default class MediaStreamTrack extends EventTarget<MediaStreamTrackEventM
             throw new Error('Only implemented for video tracks');
         }
 
+        // Preserve current facing mode when user doesn't specify one
+        if (constraints && !constraints?.facingMode && this._settings?.facingMode) {
+            constraints.facingMode = this._settings.facingMode;
+        }
+
         const normalized = normalizeConstraints({ video: constraints ?? true });
 
         this._settings = await WebRTCModule.mediaStreamTrackApplyConstraints(this.id, normalized.video);
@@ -241,12 +275,3 @@ export default class MediaStreamTrack extends EventTarget<MediaStreamTrackEventM
         WebRTCModule.mediaStreamTrackRelease(this.id);
     }
 }
-
-/**
- * Define the `onxxx` event handlers.
- */
-const proto = MediaStreamTrack.prototype;
-
-defineEventAttribute(proto, 'ended');
-defineEventAttribute(proto, 'mute');
-defineEventAttribute(proto, 'unmute');

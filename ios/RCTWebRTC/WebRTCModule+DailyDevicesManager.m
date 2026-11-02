@@ -45,6 +45,9 @@ RCT_EXPORT_METHOD(enumerateDevices:(RCTResponseSenderBlock)callback)
                                                                  mediaType:AVMediaTypeVideo
                                                                   position:AVCaptureDevicePositionUnspecified];
     for (AVCaptureDevice *device in videoevicesSession.devices) {
+        if (device.uniqueID == nil) {
+            continue;
+        }
         NSString *position = @"unknown";
         if (device.position == AVCaptureDevicePositionBack) {
             position = @"environment";

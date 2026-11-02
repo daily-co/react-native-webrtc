@@ -42,3 +42,5 @@ Run the self-test after any change to the fork, not only after a sync. Fork chan
 - `generate`: rebuild `patches/` from `daily/<baseTag>`.
 - `verify <tag> <ref>` / `audit <base> <new> <ref>`: `<ref>` equals the patched tag, and nothing from upstream was lost.
 - `build`: lint, bob build, and the `index.d.ts` checks.
+- `coverage <tag> <ref>`: every native method, JS method and native event the patches add or change is named in the self-test (`manifest.coverage`).
+- `api <base> <new>`: diff of upstream's public TypeScript declarations between two tags, for the sync preview.

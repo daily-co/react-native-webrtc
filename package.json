@@ -1,6 +1,6 @@
 {
   "name": "@daily-co/react-native-webrtc",
-  "version": "124.0.6-daily.2",
+  "version": "155.0.1-daily.1",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/daily-co/react-native-webrtc.git"
@@ -22,8 +22,7 @@
   "module": "lib/module/index.js",
   "dependencies": {
     "base64-js": "1.5.1",
-    "debug": "4.3.4",
-    "event-target-shim": "6.0.2"
+    "debug": "4.3.4"
   },
   "peerDependencies": {
     "react-native": ">=0.60.0"
@@ -33,7 +32,7 @@
     "prepublishOnly": "npm run tag",
     "lint": "eslint --max-warnings 0 . && tsc --noEmit",
     "lintfix": "eslint --max-warnings 0 --fix . && tsc --noEmit",
-    "prepare": "husky install && bob build",
+    "prepare": "husky install && bob build && node tools/postbuild.mjs",
     "format": "tools/format.sh"
   },
   "bugs": {
