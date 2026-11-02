@@ -4,9 +4,9 @@ Date: Fri, 30 Oct 2026 12:30:55 -0700
 Subject: [PATCH] android-screenshare-fgs: enable MediaProjectionService by
  default
 
-Upstream now waits for the service to reach the foreground before creating
-the screen stream (78904d2), so only enabling the service stays in this
-patch: upstream still defaults enableMediaProjectionService to false.
+Sets enableMediaProjectionService, so getDisplayMedia starts the media
+projection foreground service without the app having to enable it. Upstream
+defaults the option to false.
 ---
  android/src/main/java/com/oney/WebRTCModule/WebRTCModule.java | 2 ++
  1 file changed, 2 insertions(+)

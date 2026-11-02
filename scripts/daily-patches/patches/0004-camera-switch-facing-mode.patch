@@ -5,9 +5,11 @@ Subject: [PATCH] camera-switch-facing-mode: native switchCamera and facing
  mode getter
 
 MediaStreamTrack._switchCamera() calls native mediaStreamTrackSwitchCamera (resolves
-the new facing mode) instead of re-applying constraints; adds
-_getCameraFacingMode(). Android keeps the chosen facing mode while the camera is
-stopped (muted) and handles devices with more than two cameras.
+the new facing mode) instead of re-applying constraints, and stores that facing
+mode in the track settings, which applyConstraints falls back to when no
+facingMode is given; adds _getCameraFacingMode(). Android keeps the chosen facing
+mode while the camera is stopped (muted) and handles devices with more than two
+cameras.
 ---
  .../WebRTCModule/CameraCaptureController.java | 150 ++++++++++++++++++
  .../oney/WebRTCModule/GetUserMediaImpl.java   |  19 +++

@@ -152,7 +152,7 @@
         "src/index.ts"
       ],
       "verify": "enumerateDevices lists cameras, mics and audio outputs; switching speaker/earpiece/bluetooth works; plugging/unplugging a headset fires devicechange.",
-      "notes": "Highest conflict risk: upstream enumerateDevices is bypassed (Android) / commented out (iOS). Review upstream changes to enumerateDevices and port them into the Daily devices manager (the iOS uniqueID nil guard was ported in 155.0.1). MediaDevices._registerEvents still has debug console.log calls.",
+      "notes": "Highest conflict risk: upstream enumerateDevices is bypassed (Android) / commented out (iOS). Review upstream changes to enumerateDevices and port them into the Daily devices manager, which also skips iOS devices without a uniqueID. MediaDevices._registerEvents still has debug console.log calls.",
       "lastVerified": {
         "tag": "155.0.1",
         "result": "conflict-resolved"

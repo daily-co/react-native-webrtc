@@ -3,8 +3,7 @@ From: filipi87 <filipi87@gmail.com>
 Date: Fri, 30 Oct 2026 12:31:02 -0700
 Subject: [PATCH] misc-logging: silence missing-track warning
 
-Upstream now logs startCapture failures on Android (78904d2), so only
-the iOS warning removal stays in this patch.
+Removes the iOS yellow-box warning shown when a stream has no video track yet.
 ---
  ios/RCTWebRTC/RTCVideoViewManager.m | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

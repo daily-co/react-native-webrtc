@@ -47,10 +47,10 @@ git log --oneline --no-merges $BASE..$NEW
 
 - `fork-packaging` always conflicts on the `"version"` line in package.json, because upstream bumps it. That's expected.
 - If a patch that isn't clean has an `obsoleteWhen`, or upstream touched the files of an `upstreamable` patch, read `git diff $BASE $NEW -- <files>` and decide whether to drop or trim the patch.
-- **For every patch whose files upstream changed, read `git diff $BASE $NEW -- <files>`, even when the patch applies clean or by 3-way merge.** A text-level result doesn't show behaviour that interacts with the patch. For example, 155.0.1's `applyConstraints` started falling back to `_settings.facingMode`, which `_switchCamera` didn't update.
+- **For every patch whose files upstream changed, read `git diff $BASE $NEW -- <files>`, even when the patch applies clean or by 3-way merge.** A text-level result doesn't show behaviour that interacts with the patch, such as upstream code starting to read state that a patch has to keep current (upstream `applyConstraints` falls back to `_settings.facingMode`, so the patched `_switchCamera` must update it).
 - The Daily-facing APIs are the ones `examples/DailySelfTest/src/selfTest.ts` checks; see the table in the `daily-selftest` skill for which patch owns each check. Upstream changes around them need the most care. `patches.sh coverage` (step 7) fails if a patch adds or changes an API without naming it in the self-test.
 - Upstream's `enumerateDevices` is bypassed: if upstream changed it, port the change into the Daily devices manager.
-- Every changed signature in the `api` output goes in the summary. Daily may call upstream APIs too, not only the fork's (155.0.1 added a `constraints` argument to `getDisplayMedia`).
+- Every changed signature in the `api` output goes in the summary. Daily calls upstream APIs too, not only the fork's, so a new or changed argument (on `getDisplayMedia`, for example) can affect react-native-daily-js.
 
 Summarise for the user: the table, the patches to drop or trim, the expected conflicts, the interactions found in the diffs, and the changed signatures. Agree on the plan before continuing.
 
