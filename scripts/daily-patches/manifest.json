@@ -17,6 +17,13 @@
     "$comment": "Fork tooling that lives only in this repo, is never part of a patch, and is ignored when comparing patched upstream with main.",
     "paths": [".claude/", "scripts/daily-patches/"]
   },
+  "coverage": {
+    "$comment": "patches.sh coverage: every native method, JS method and native event the patches add or change must be named in selfTest, except the internal ones listed here with the reason.",
+    "selfTest": "examples/DailySelfTest/src/selfTest.ts",
+    "internal": {
+      "_registerEvents": "MediaDevices constructor helper; covered by the devicechange check."
+    }
+  },
   "patches": [
     {
       "id": "fork-packaging",

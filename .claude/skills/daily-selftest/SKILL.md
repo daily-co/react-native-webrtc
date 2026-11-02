@@ -37,4 +37,4 @@ npm test -- android   # or: npm test -- ios
   - iOS simulator: 5 (the camera checks, the audio-route round trip, and screen share, which needs the broadcast picker).
 - **Not covered:** hearing the audio route change, Bluetooth, `devicechange` on a real headset plug, and the app staying alive in the background on iOS. The user checks those on a real device.
 
-When a patch adds or changes a Daily-facing API, add or update a `{ name, run }` entry in `src/selfTest.ts` (throw to fail, `skip()` to skip) and the table above. The app belongs to the `daily-selftest-app` patch, so change it through the patch queue.
+When a patch adds or changes a Daily-facing API, add or update a `{ name, run }` entry in `src/selfTest.ts` (throw to fail, `skip()` to skip) and the table above. `scripts/daily-patches/patches.sh coverage` fails until the self-test names every API the patches add. The app belongs to the `daily-selftest-app` patch, so change it through the patch queue.
